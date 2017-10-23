@@ -192,7 +192,7 @@ public class Human {
 		Graph g = new Graph(GRAPH);
 		g.dijkstra(START);
 		GridPoint nextPoint = g.getNextPoint(START, END);
-		g.printPath(END);
+		//g.printPath(END);
 		//g.printAllPaths();
 		return nextPoint;
 	}
