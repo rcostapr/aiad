@@ -12,46 +12,108 @@ import repast.simphony.space.grid.GridBuilderParameters;
 import repast.simphony.space.grid.SimpleGridAdder;
 import repast.simphony.space.grid.WrapAroundBorders;
 
-public class JEvacuationBuilder implements ContextBuilder<Object > {
+public class JEvacuationBuilder implements ContextBuilder<Object> {
 
 	@Override
 	public Context<?> build(Context<Object> context) {
 		GridFactory gridFactory = GridFactoryFinder.createGridFactory(null);
-		Grid<Object> grid = gridFactory.createGrid("grid", context, 
-				new GridBuilderParameters<Object>(new WrapAroundBorders(),
-						new SimpleGridAdder<Object>(),
-						true, 25, 25));
-		
+		Grid<Object> grid = gridFactory.createGrid("grid", context,
+				new GridBuilderParameters<Object>(new WrapAroundBorders(), new SimpleGridAdder<Object>(), true, 40, 25));
+
 		Parameters params = RunEnvironment.getInstance().getParameters();
-		
+
 		builWalls(grid, context);
-		
-		int humanCount = (Integer)params.getValue("human_count");
-		
-		int doorExitX = grid.getDimensions().getWidth()-1;
-		int doorExitY = RandomHelper.nextIntFromTo(1,grid.getDimensions().getHeight()-2);
-		Door exitDoor = new Door(grid);
-		context.add(exitDoor);
-		grid.moveTo(exitDoor, doorExitX, doorExitY);
-		
-		for (Object obj : grid.getObjectsAt(doorExitX, doorExitY)) {
-			if (obj instanceof Wall) {
-				context.remove(obj);
+
+		int humanCount = (Integer) params.getValue("human_count");
+		int securityCount = (Integer) params.getValue("security_count");
+		int doorsCount = (Integer) params.getValue("doors_count");
+
+		while (doorsCount > 0) {
+			int doorExitX = grid.getDimensions().getWidth() - 1;
+			int doorExitY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+			Door exitDoor = new Door(grid);
+			context.add(exitDoor);
+			grid.moveTo(exitDoor, doorExitX, doorExitY);
+
+			for (Object obj : grid.getObjectsAt(doorExitX, doorExitY)) {
+				if (obj instanceof Wall) {
+					context.remove(obj);
+				}
 			}
+
+			doorsCount--;
+
+			if (doorsCount > 0) {
+				doorExitX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+				doorExitY = grid.getDimensions().getHeight() - 1;
+				Door exitDoor1 = new Door(grid);
+				context.add(exitDoor1);
+				grid.moveTo(exitDoor1, doorExitX, doorExitY);
+
+				for (Object obj : grid.getObjectsAt(doorExitX, doorExitY)) {
+					if (obj instanceof Wall) {
+						context.remove(obj);
+					}
+				}
+				doorsCount--;
+			}
+
+			if (doorsCount > 0) {
+				doorExitX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 2);
+				doorExitY = 0;
+				Door exitDoor2 = new Door(grid);
+				context.add(exitDoor2);
+				grid.moveTo(exitDoor2, doorExitX, doorExitY);
+
+				for (Object obj : grid.getObjectsAt(doorExitX, doorExitY)) {
+					if (obj instanceof Wall) {
+						context.remove(obj);
+					}
+				}
+				doorsCount--;
+			}
+
+			if (doorsCount > 0) {
+				doorExitX = 0;
+				doorExitY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+				Door exitDoor4 = new Door(grid);
+				context.add(exitDoor4);
+				grid.moveTo(exitDoor4, doorExitX, doorExitY);
+
+				for (Object obj : grid.getObjectsAt(doorExitX, doorExitY)) {
+					if (obj instanceof Wall) {
+						context.remove(obj);
+					}
+				}
+				doorsCount--;
+			}
+
 		}
-		
-		for(int i = 0; i < humanCount; i++) {
-			Human newHuman = new Human(grid);
+
+		for (int i = 0; i < humanCount; i++) {
+			Human newHuman = new Human(grid, context);
 			context.add(newHuman);
-			int startX = RandomHelper.nextIntFromTo(1,grid.getDimensions().getWidth()-2);
-			int startY = RandomHelper.nextIntFromTo(1,grid.getDimensions().getHeight()-2);
-			while(!isValidPosition(startX,startY, grid)){
-				startX = RandomHelper.nextIntFromTo(1,grid.getDimensions().getWidth()-2);
-				startY = RandomHelper.nextIntFromTo(1,grid.getDimensions().getHeight()-2);
+			int startX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 2);
+			int startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+			while (!isValidPosition(startX, startY, grid)) {
+				startX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 2);
+				startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
 			}
 			grid.moveTo(newHuman, startX, startY);
 		}
-		
+
+		for (int i = 0; i < securityCount; i++) {
+			Security newSecurity = new Security(grid, context);
+			context.add(newSecurity);
+			int startX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 2);
+			int startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+			while (!isValidPosition(startX, startY, grid)) {
+				startX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 2);
+				startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+			}
+			grid.moveTo(newSecurity, startX, startY);
+		}
+
 		return context;
 	}
 
@@ -71,99 +133,97 @@ public class JEvacuationBuilder implements ContextBuilder<Object > {
 	}
 
 	private void builWalls(Grid<Object> grid, Context<Object> context) {
-		
-		//LEFT WALL
-		for(int i=0; i<grid.getDimensions().getHeight(); i++){
+
+		// LEFT WALL
+		for (int i = 0; i < grid.getDimensions().getHeight(); i++) {
 			Wall wall = new Wall(grid);
 			context.add(wall);
 			grid.moveTo(wall, 0, i);
-			
+
 		}
-		//RIGHT WALL
-		for(int i=0; i<grid.getDimensions().getHeight(); i++){
-			Wall wall = new Wall(grid);		
+		// RIGHT WALL
+		for (int i = 0; i < grid.getDimensions().getHeight(); i++) {
+			Wall wall = new Wall(grid);
 			context.add(wall);
-			grid.moveTo(wall, grid.getDimensions().getWidth()-1, i);
-			
+			grid.moveTo(wall, grid.getDimensions().getWidth() - 1, i);
+
 		}
-		//TOP WALL
-		for(int i=1; i<grid.getDimensions().getWidth(); i++){
-			Wall wall = new Wall(grid);			
+		// TOP WALL
+		for (int i = 1; i < grid.getDimensions().getWidth(); i++) {
+			Wall wall = new Wall(grid);
 			context.add(wall);
-			grid.moveTo(wall, i, grid.getDimensions().getHeight()-1);
-			
+			grid.moveTo(wall, i, grid.getDimensions().getHeight() - 1);
+
 		}
-		//BOTTOM WALL
-		for(int i=1; i<grid.getDimensions().getWidth(); i++){
+		// BOTTOM WALL
+		for (int i = 1; i < grid.getDimensions().getWidth(); i++) {
 			Wall wall = new Wall(grid);
 			context.add(wall);
 			grid.moveTo(wall, i, 0);
 		}
-		
-		
-		for(int i=1; i<grid.getDimensions().getHeight()-1; i++){
-			if(i!=7 && i!=20){
+
+		for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
+			if (i != 7 && i != 20) {
 				Wall wall = new Wall(grid);
 				context.add(wall);
 				grid.moveTo(wall, 5, i);
 			}
 		}
-		
-		for(int i=1; i<grid.getDimensions().getHeight()-1; i++){
-			if(i!=3 && i!=12){
-			Wall wall = new Wall(grid);
-			context.add(wall);
-			grid.moveTo(wall, 10, i);
+
+		for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
+			if (i != 3 && i != 12) {
+				Wall wall = new Wall(grid);
+				context.add(wall);
+				grid.moveTo(wall, 10, i);
 			}
-			
+
 		}
-		
-		for(int i=1; i<grid.getDimensions().getHeight()-1; i++){
-			if(i!=8 && i!=20){
-			Wall wall = new Wall(grid);
-			context.add(wall);
-			grid.moveTo(wall, 18, i);
+
+		for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
+			if (i != 8 && i != 20) {
+				Wall wall = new Wall(grid);
+				context.add(wall);
+				grid.moveTo(wall, 18, i);
 			}
-			
+
 		}
-		
-		for(int i=1; i<grid.getDimensions().getHeight()-1; i++){
-			if(i!=3 && i!=12){
-			Wall wall = new Wall(grid);
-			context.add(wall);
-			grid.moveTo(wall, grid.getDimensions().getWidth()-3, i);
+
+		for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
+			if (i != 3 && i != 12) {
+				Wall wall = new Wall(grid);
+				context.add(wall);
+				grid.moveTo(wall, grid.getDimensions().getWidth() - 3, i);
 			}
-			
+
 		}
-		
-		for(int i=1; i<grid.getDimensions().getWidth()-3; i++){
-			if(i!=2 && i!=8 && i!=14 && i!=20){
-			Wall wall = new Wall(grid);
-			context.add(wall);
-			grid.moveTo(wall, i, 5);
+
+		for (int i = 1; i < grid.getDimensions().getWidth() - 3; i++) {
+			if (i != 2 && i != 8 && i != 14 && i != 20) {
+				Wall wall = new Wall(grid);
+				context.add(wall);
+				grid.moveTo(wall, i, 5);
 			}
-			
+
 		}
-		
-		for(int i=1; i<grid.getDimensions().getWidth()-3; i++){
-			if(i!=8 && i!=20){
-			Wall wall = new Wall(grid);
-			context.add(wall);
-			grid.moveTo(wall, i, 10);
+
+		for (int i = 1; i < grid.getDimensions().getWidth() - 3; i++) {
+			if (i != 8 && i != 20) {
+				Wall wall = new Wall(grid);
+				context.add(wall);
+				grid.moveTo(wall, i, 10);
 			}
-			
+
 		}
-		
-		for(int i=1; i<grid.getDimensions().getWidth()-3; i++){
-			if(i!=2 && i!=8 && i!=14 && i!=20){
-			Wall wall = new Wall(grid);
-			context.add(wall);
-			grid.moveTo(wall, i, 17);
+
+		for (int i = 1; i < grid.getDimensions().getWidth() - 3; i++) {
+			if (i != 2 && i != 8 && i != 14 && i != 20) {
+				Wall wall = new Wall(grid);
+				context.add(wall);
+				grid.moveTo(wall, i, 17);
 			}
-			
+
 		}
-		
-		
+
 	}
 
 }

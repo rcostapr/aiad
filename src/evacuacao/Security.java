@@ -2,11 +2,11 @@ package evacuacao;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import graph.Graph;
 import repast.simphony.context.Context;
 import repast.simphony.engine.environment.RunEnvironment;
 import repast.simphony.engine.schedule.ScheduledMethod;
-import repast.simphony.parameter.Parameters;
 import repast.simphony.query.space.grid.GridCell;
 import repast.simphony.query.space.grid.GridCellNgh;
 import repast.simphony.random.RandomHelper;
@@ -14,14 +14,14 @@ import repast.simphony.space.grid.Grid;
 import repast.simphony.space.grid.GridPoint;
 import repast.simphony.util.SimUtilities;
 
-public class Human {
+public class Security {
 	private Grid<Object> grid;
 	private boolean moved;
 	private Context<Object> context;
 
-	public Human(Grid<Object> grid, Context<Object> context) {
+	public Security(Grid<Object> grid, Context<Object> context) {
 		this.grid = grid;
-		this.context=context;
+		this.context = context;
 	}
 
 	@ScheduledMethod(start = 1, interval = 1)
@@ -29,8 +29,17 @@ public class Human {
 		GridCellNgh<Human> nghCreator = new GridCellNgh<Human>(grid, myLocation(), Human.class, 1, 1);
 		List<GridCell<Human>> gridCells = nghCreator.getNeighborhood(true);
 		SimUtilities.shuffle(gridCells, RandomHelper.getUniform());
-
-		moveTowards(myLocation());
+		
+		
+		List<Human> humans = new ArrayList<Human>();
+		for (Object obj : grid.getObjects()) {
+			if (obj instanceof Human) {
+				humans.add((Human) obj);
+			}
+		}
+		
+		if(humans.size()==0)
+			moveTowards(myLocation());
 
 		List<Object> doors = new ArrayList<Object>();
 		for (Object obj : grid.getObjectsAt(myLocation().getX(), myLocation().getY())) {
@@ -40,18 +49,18 @@ public class Human {
 		}
 
 		if (doors.size() > 0) {
-			System.out.println("Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
+			System.out.println("Security Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
 			context.remove(this);
-			/*List<Human> people = new ArrayList<Human>();
-			for (Object obj : grid.getObjectsAt(myLocation().getX(), myLocation().getY())) {
-				if (obj instanceof Human) {
-					people.add((Human) obj);
+			List<Security> people = new ArrayList<Security>();
+			for (Object obj : grid.getObjects()) {
+				if (obj instanceof Security) {
+					people.add((Security) obj);
 				}
 			}
-			Parameters params = RunEnvironment.getInstance().getParameters();
-			int humanCount = (Integer)params.getValue("human_count");
-			if(people.size()==humanCount)
-				RunEnvironment.getInstance().endRun();*/
+			//Parameters params = RunEnvironment.getInstance().getParameters();
+			//int securityCount = (Integer) params.getValue("security_count");
+			if (people.size() == 0)
+				RunEnvironment.getInstance().endRun();
 		}
 
 	}
@@ -59,7 +68,7 @@ public class Human {
 	private GridPoint myLocation() {
 		return grid.getLocation(this);
 	}
-
+	
 	public void moveTowards(GridPoint pt) {
 		double distToExit = 999999;
 		int indexDoor = -1;
@@ -222,4 +231,5 @@ public class Human {
 	public void setMoved(boolean moved) {
 		this.moved = moved;
 	}
+
 }
