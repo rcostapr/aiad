@@ -22,117 +22,89 @@ public class JEvacuationBuilder implements ContextBuilder<Object> {
 
 		Parameters params = RunEnvironment.getInstance().getParameters();
 
-		builWalls(grid, context);
+		buildWalls(grid, context);
 
 		int humanCount = (Integer) params.getValue("human_count");
 		int securityCount = (Integer) params.getValue("security_count");
 		int doorsCount = (Integer) params.getValue("doors_count");
 
+		generateExits(grid,context,doorsCount);
+		
+		createHumans(grid,context,humanCount);
+		
+		createSecurity(grid,context,securityCount);
+
+		return context;
+	}
+	
+	private void generateExits(Grid<Object> grid, Context<Object> context,int doorsCount){
 		while (doorsCount > 0) {
-			int doorExitX = grid.getDimensions().getWidth() - 1;
-			int doorExitY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+			double chance = RandomHelper.nextDoubleFromTo(0,1);
+			int doorExitX = 0,doorExitY= 0;
+			//right wall
+			if(chance <= 0.33){
+				doorExitX = grid.getDimensions().getWidth() - 1;
+				doorExitY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+			}
+			//top wall
+			else if(chance <= 0.66){
+				doorExitX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 22, grid.getDimensions().getWidth() - 2);
+				doorExitY = grid.getDimensions().getHeight() - 1;
+			}
+			//bottom wall
+			else if(chance <= 1){
+				doorExitX =	RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 22, grid.getDimensions().getWidth() - 2);
+				doorExitY = 0;
+			}
 			Door exitDoor = new Door(grid);
 			context.add(exitDoor);
 			grid.moveTo(exitDoor, doorExitX, doorExitY);
-
 			for (Object obj : grid.getObjectsAt(doorExitX, doorExitY)) {
 				if (obj instanceof Wall) {
 					context.remove(obj);
 				}
-			}
-
+				//if a door already exists at that location - try again
+				if (obj instanceof Door){
+					context.remove(exitDoor);
+					continue;
+				}
+			
+			}	
+			
 			doorsCount--;
 
-			if (doorsCount > 0) {
-				doorExitX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
-				doorExitY = grid.getDimensions().getHeight() - 1;
-				Door exitDoor1 = new Door(grid);
-				context.add(exitDoor1);
-				grid.moveTo(exitDoor1, doorExitX, doorExitY);
-
-				for (Object obj : grid.getObjectsAt(doorExitX, doorExitY)) {
-					if (obj instanceof Wall) {
-						context.remove(obj);
-					}
-				}
-				doorsCount--;
-			}
-
-			if (doorsCount > 0) {
-				doorExitX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 2);
-				doorExitY = 0;
-				Door exitDoor2 = new Door(grid);
-				context.add(exitDoor2);
-				grid.moveTo(exitDoor2, doorExitX, doorExitY);
-
-				for (Object obj : grid.getObjectsAt(doorExitX, doorExitY)) {
-					if (obj instanceof Wall) {
-						context.remove(obj);
-					}
-				}
-				doorsCount--;
-			}
-
-			if (doorsCount > 0) {
-				doorExitX = 0;
-				doorExitY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
-				Door exitDoor4 = new Door(grid);
-				context.add(exitDoor4);
-				grid.moveTo(exitDoor4, doorExitX, doorExitY);
-
-				for (Object obj : grid.getObjectsAt(doorExitX, doorExitY)) {
-					if (obj instanceof Wall) {
-						context.remove(obj);
-					}
-				}
-				doorsCount--;
-			}
-
 		}
-
+	}
+	
+	private void createHumans(Grid<Object> grid, Context<Object> context, int humanCount){
 		for (int i = 0; i < humanCount; i++) {
-			Human newHuman = new Human(grid, context);
+			Human newHuman = new Human(grid, context,State.inRoom,Condition.healthy,1);
 			context.add(newHuman);
-			int startX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 2);
+			int startX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 20);
 			int startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
 			while (!isValidPosition(startX, startY, grid)) {
-				startX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 2);
+				startX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 20);
 				startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
 			}
 			grid.moveTo(newHuman, startX, startY);
 		}
-
+	}
+	
+	private void createSecurity(Grid<Object> grid, Context<Object> context, int securityCount){
 		for (int i = 0; i < securityCount; i++) {
 			Security newSecurity = new Security(grid, context);
 			context.add(newSecurity);
-			int startX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 2);
+			int startX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 1);
 			int startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
 			while (!isValidPosition(startX, startY, grid)) {
-				startX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 2);
+				startX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 1);
 				startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
 			}
 			grid.moveTo(newSecurity, startX, startY);
 		}
-
-		return context;
 	}
-
-	private boolean isValidPosition(int startX, int startY, Grid<Object> grid) {
-		if (startX < 0 || startY < 0)
-			return false;
-		if (startX >= grid.getDimensions().getWidth())
-			return false;
-		if (startY >= grid.getDimensions().getHeight())
-			return false;
-		for (Object obj : grid.getObjectsAt(startX, startY)) {
-			if (obj instanceof Wall) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	private void builWalls(Grid<Object> grid, Context<Object> context) {
+	
+	private void buildWalls(Grid<Object> grid, Context<Object> context) {
 
 		// LEFT WALL
 		for (int i = 0; i < grid.getDimensions().getHeight(); i++) {
@@ -161,14 +133,7 @@ public class JEvacuationBuilder implements ContextBuilder<Object> {
 			context.add(wall);
 			grid.moveTo(wall, i, 0);
 		}
-
-		for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
-			if (i != 7 && i != 20) {
-				Wall wall = new Wall(grid);
-				context.add(wall);
-				grid.moveTo(wall, 5, i);
-			}
-		}
+	
 
 		for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
 			if (i != 3 && i != 12) {
@@ -183,47 +148,44 @@ public class JEvacuationBuilder implements ContextBuilder<Object> {
 			if (i != 8 && i != 20) {
 				Wall wall = new Wall(grid);
 				context.add(wall);
-				grid.moveTo(wall, 18, i);
+				grid.moveTo(wall, 19, i);
 			}
 
 		}
 
-		for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
-			if (i != 3 && i != 12) {
+		for (int i = 1; i < grid.getDimensions().getWidth() - 20; i++) {
+			if (i != 8) {
 				Wall wall = new Wall(grid);
 				context.add(wall);
-				grid.moveTo(wall, grid.getDimensions().getWidth() - 3, i);
+				grid.moveTo(wall, i, 9);
 			}
 
 		}
 
-		for (int i = 1; i < grid.getDimensions().getWidth() - 3; i++) {
-			if (i != 2 && i != 8 && i != 14 && i != 20) {
+		for (int i = 1; i < grid.getDimensions().getWidth() - 20; i++) {
+			if (i != 2 && i != 8 && i != 14) {
 				Wall wall = new Wall(grid);
 				context.add(wall);
-				grid.moveTo(wall, i, 5);
+				grid.moveTo(wall, i, 16);
 			}
 
 		}
 
-		for (int i = 1; i < grid.getDimensions().getWidth() - 3; i++) {
-			if (i != 8 && i != 20) {
-				Wall wall = new Wall(grid);
-				context.add(wall);
-				grid.moveTo(wall, i, 10);
+	}
+	
+	private boolean isValidPosition(int startX, int startY, Grid<Object> grid) {
+		if (startX < 0 || startY < 0)
+			return false;
+		if (startX >= grid.getDimensions().getWidth())
+			return false;
+		if (startY >= grid.getDimensions().getHeight())
+			return false;
+		for (Object obj : grid.getObjectsAt(startX, startY)) {
+			if (obj instanceof Wall) {
+				return false;
 			}
-
 		}
-
-		for (int i = 1; i < grid.getDimensions().getWidth() - 3; i++) {
-			if (i != 2 && i != 8 && i != 14 && i != 20) {
-				Wall wall = new Wall(grid);
-				context.add(wall);
-				grid.moveTo(wall, i, 17);
-			}
-
-		}
-
+		return true;
 	}
 
 }

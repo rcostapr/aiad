@@ -13,15 +13,26 @@ import repast.simphony.random.RandomHelper;
 import repast.simphony.space.grid.Grid;
 import repast.simphony.space.grid.GridPoint;
 import repast.simphony.util.SimUtilities;
-
+ enum State {
+    inRoom,wandering,knowExit 
+ }
+ enum Condition{
+	 healthy,injured,saved
+ }
 public class Human {
 	private Grid<Object> grid;
 	private boolean moved;
 	private Context<Object> context;
-
-	public Human(Grid<Object> grid, Context<Object> context) {
+	private State state;
+	private Condition condition;
+	private float altruism;
+	
+	public Human(Grid<Object> grid, Context<Object> context,State state,Condition condition,float altruism) {
 		this.grid = grid;
 		this.context=context;
+		this.state=state;
+		this.condition=condition;
+		this.altruism=altruism;
 	}
 
 	@ScheduledMethod(start = 1, interval = 1)
