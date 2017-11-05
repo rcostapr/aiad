@@ -83,8 +83,8 @@ public class Security {
 		if (doors.size() > 0) {
 			for (int i = 0; i < doors.size(); i++) {
 				double distVal = Math.hypot(myLocation().getX() - doors.get(i).getLocation().getX(), myLocation().getY() - doors.get(i).getLocation().getY());
-				System.out.println(myLocation().getX() + " " + myLocation().getY() + " " + doors.get(i).getLocation().getX() + " "
-						+ doors.get(i).getLocation().getX() + " " + distVal);
+				//System.out.println(myLocation().getX() + " " + myLocation().getY() + " " + doors.get(i).getLocation().getX() + " "
+				//		+ doors.get(i).getLocation().getX() + " " + distVal);
 				if (distVal < distToExit) {
 					distToExit = distVal;
 					indexDoor = i;

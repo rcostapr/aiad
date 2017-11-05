@@ -48,12 +48,12 @@ public class JEvacuationBuilder implements ContextBuilder<Object> {
 			}
 			//top wall
 			else if(chance <= 0.66){
-				doorExitX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 22, grid.getDimensions().getWidth() - 2);
+				doorExitX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 2);
 				doorExitY = grid.getDimensions().getHeight() - 1;
 			}
 			//bottom wall
 			else if(chance <= 1){
-				doorExitX =	RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 22, grid.getDimensions().getWidth() - 2);
+				doorExitX =	RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 2);
 				doorExitY = 0;
 			}
 			Door exitDoor = new Door(grid);
@@ -78,7 +78,7 @@ public class JEvacuationBuilder implements ContextBuilder<Object> {
 	
 	private void createHumans(Grid<Object> grid, Context<Object> context, int humanCount){
 		for (int i = 0; i < humanCount; i++) {
-			Human newHuman = new Human(grid, context,State.inRoom,Condition.healthy,1);
+			Human newHuman = new Human(grid, context,State.inRoom,Condition.healthy,1,3);
 			context.add(newHuman);
 			int startX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 20);
 			int startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
