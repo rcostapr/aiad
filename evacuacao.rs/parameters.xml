@@ -8,8 +8,11 @@
 		converter="repast.simphony.parameter.StringConverterFactory$IntConverter" />
 	<parameter name="security_count" displayName="Security Count" type="int"
 		defaultValue="5" isReadOnly="false"
-		converter="repast.simphony.parameter.StringConverterFactory$IntConverter" />~
+		converter="repast.simphony.parameter.StringConverterFactory$IntConverter" />
 	<parameter name="doors_count" displayName="Doors Count" type="int"
 		defaultValue="4" isReadOnly="false"
+		converter="repast.simphony.parameter.StringConverterFactory$IntConverter" />
+	<parameter name="radius_vision" displayName="Vision Radius" type="int"
+		defaultValue="3" isReadOnly="false"
 		converter="repast.simphony.parameter.StringConverterFactory$IntConverter" />
 </parameters>

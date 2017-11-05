@@ -27,10 +27,11 @@ public class JEvacuationBuilder implements ContextBuilder<Object> {
 		int humanCount = (Integer) params.getValue("human_count");
 		int securityCount = (Integer) params.getValue("security_count");
 		int doorsCount = (Integer) params.getValue("doors_count");
+		int radiusVision = (Integer) params.getValue("radius_vision");
 
 		generateExits(grid,context,doorsCount);
 		
-		createHumans(grid,context,humanCount);
+		createHumans(grid,context,humanCount,radiusVision);
 		
 		createSecurity(grid,context,securityCount);
 
@@ -76,9 +77,9 @@ public class JEvacuationBuilder implements ContextBuilder<Object> {
 		}
 	}
 	
-	private void createHumans(Grid<Object> grid, Context<Object> context, int humanCount){
+	private void createHumans(Grid<Object> grid, Context<Object> context, int humanCount, int radiusVision){
 		for (int i = 0; i < humanCount; i++) {
-			Human newHuman = new Human(grid, context,State.inRoom,Condition.healthy,1,3);
+			Human newHuman = new Human(grid, context,State.inRoom,Condition.healthy,1,radiusVision);
 			context.add(newHuman);
 			int startX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 20);
 			int startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);

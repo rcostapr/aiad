@@ -479,6 +479,13 @@ public class Human {
 			moveToZone(i,j);
 		}
 		if(this.nextZone==Zones.nowhere){
+			
+			if(currentZone != Zones.nowhere){
+				nextZone(currentZone);
+				moveToZone(i,j);
+				return;
+			}
+			
 			ArrayList<GridPoint> possibleMoves = new ArrayList<GridPoint>();
 			
 			if (validPosition(i, j + 1)) {
@@ -504,9 +511,7 @@ public class Human {
 				setMoved(true);
 			}
 			
-			if(currentZone != Zones.nowhere){
-				nextZone(currentZone);
-			}
+			
 		}
 		
 	}
@@ -676,9 +681,7 @@ public class Human {
 	
 	public boolean moveLeft(int i, int j){
 		if (validPosition(i-1, j)) {
-			if(j==20)
-			grid.moveTo(this,i-1, j+1);
-			else grid.moveTo(this,i-1, j);
+			grid.moveTo(this,i-1, j);
 			setMoved(true);
 			return true;
 		}
