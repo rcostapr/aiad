@@ -35,46 +35,6 @@ public class Security extends Agent{
 		this.context = context;
 	}
 
-	/*@ScheduledMethod(start = 1, interval = 1)
-	public void step() {
-		GridCellNgh<Human> nghCreator = new GridCellNgh<Human>(grid, myLocation(), Human.class, 1, 1);
-		List<GridCell<Human>> gridCells = nghCreator.getNeighborhood(true);
-		SimUtilities.shuffle(gridCells, RandomHelper.getUniform());
-		
-		
-		List<Human> humans = new ArrayList<Human>();
-		for (Object obj : grid.getObjects()) {
-			if (obj instanceof Human) {
-				humans.add((Human) obj);
-			}
-		}
-		
-		if(humans.size()==0)
-			moveTowards(myLocation());
-
-		List<Object> doors = new ArrayList<Object>();
-		for (Object obj : grid.getObjectsAt(myLocation().getX(), myLocation().getY())) {
-			if (obj instanceof Door) {
-				doors.add(obj);
-			}
-		}
-
-		if (doors.size() > 0) {
-			System.out.println("Security Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
-			context.remove(this);
-			List<Security> people = new ArrayList<Security>();
-			for (Object obj : grid.getObjects()) {
-				if (obj instanceof Security) {
-					people.add((Security) obj);
-				}
-			}
-			//Parameters params = RunEnvironment.getInstance().getParameters();
-			//int securityCount = (Integer) params.getValue("security_count");
-			if (people.size() == 0)
-				RunEnvironment.getInstance().endRun();
-		}
-
-	}*/
 
 	private GridPoint myLocation() {
 		return grid.getLocation(this);

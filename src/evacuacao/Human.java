@@ -83,39 +83,7 @@ public class Human extends Agent{
 		}	
 		return Zones.nowhere;
 	}
-	/*
-	@ScheduledMethod(start = 1, interval = 1)
-	public void step() {
-		GridCellNgh<Human> nghCreator = new GridCellNgh<Human>(grid, myLocation(), Human.class, 1, 1);
-		List<GridCell<Human>> gridCells = nghCreator.getNeighborhood(true);
-		SimUtilities.shuffle(gridCells, RandomHelper.getUniform());
-		
-		if(myLocation().getX()>grid.getDimensions().getWidth() - 21 && this.state!=State.knowExit)
-			this.state= State.wandering;
-		//lookup in visionRadius to find exit or security guard
-		vision(myLocation());
-		
-		switch(this.state){
-		case inRoom:
-			moveTowards(myLocation());
-			break;
-		case wandering:
-			moveExplore(myLocation());
-			
-			break;
-		case knowExit:
-			moveToExit(myLocation());
-			break;
-		}
-		
-		if(checkDoorAtLocation(myLocation().getX(),myLocation().getY())){
-			System.out.println("Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
-			context.remove(this);
-		}
-		
-		
-	}
-	*/
+	
 	private boolean checkDoorAtLocation(int x, int y){
 		List<Object> doors = new ArrayList<Object>();
 		for (Object obj : grid.getObjectsAt(x, y)) {
