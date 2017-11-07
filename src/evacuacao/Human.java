@@ -2,17 +2,24 @@ package evacuacao;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import evacuacao.onto.ServiceOntology;
 import graph.Graph;
 import repast.simphony.context.Context;
-import repast.simphony.engine.environment.RunEnvironment;
-import repast.simphony.engine.schedule.ScheduledMethod;
-import repast.simphony.parameter.Parameters;
 import repast.simphony.query.space.grid.GridCell;
 import repast.simphony.query.space.grid.GridCellNgh;
 import repast.simphony.random.RandomHelper;
 import repast.simphony.space.grid.Grid;
 import repast.simphony.space.grid.GridPoint;
 import repast.simphony.util.SimUtilities;
+import sajas.core.Agent;
+import sajas.core.behaviours.SimpleBehaviour;
+import jade.content.lang.Codec;
+import jade.content.lang.sl.SLCodec;
+import jade.content.onto.Ontology;
+import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
+
  enum State {
     inRoom,wandering,knowExit 
  }
@@ -22,7 +29,7 @@ import repast.simphony.util.SimUtilities;
  enum Zones{
 	 topWall,bottomWall,RightWall,topRight,topLeft,bottomLeft,bottomRight,nowhere
  }
-public class Human {
+public class Human extends Agent{
 	private Grid<Object> grid;
 	private boolean moved;
 	private Context<Object> context;
@@ -35,6 +42,12 @@ public class Human {
 	private int visionRadius;
 	private int exitX;
 	private int exitY;
+	
+	protected Codec codec;
+	protected Ontology serviceOntology;	
+	protected ACLMessage myCfp;	
+	
+	public static final String HELP_MESSAGE = "Help Me!?";
 	
 	public Human(Grid<Object> grid, Context<Object> context,State state,Condition condition,float altruism, int visionRadius) {
 		this.grid = grid;
@@ -70,7 +83,7 @@ public class Human {
 		}	
 		return Zones.nowhere;
 	}
-	
+	/*
 	@ScheduledMethod(start = 1, interval = 1)
 	public void step() {
 		GridCellNgh<Human> nghCreator = new GridCellNgh<Human>(grid, myLocation(), Human.class, 1, 1);
@@ -102,7 +115,7 @@ public class Human {
 		
 		
 	}
-	
+	*/
 	private boolean checkDoorAtLocation(int x, int y){
 		List<Object> doors = new ArrayList<Object>();
 		for (Object obj : grid.getObjectsAt(x, y)) {
@@ -718,4 +731,81 @@ public class Human {
 	public void setMoved(boolean moved) {
 		this.moved = moved;
 	}
+	
+	@Override
+	public void setup() {
+		// register language and ontology
+		codec = new SLCodec();
+		serviceOntology = ServiceOntology.getInstance();
+		getContentManager().registerLanguage(codec);
+		getContentManager().registerOntology(serviceOntology);	
+
+		// add behaviours
+		addBehaviour(new moveHandler(this));
+	}
+
+	@Override
+	protected void takeDown() {
+		System.out.println("Human out alive");
+		context.remove(this);
+		// notify results collector
+	}
+	
+	/**
+	 * MoveHandler behaviour
+	 */
+	class moveHandler extends SimpleBehaviour {
+		private MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.PROPAGATE), MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME));
+		private static final long serialVersionUID = 1L;
+
+		public moveHandler(Agent a) {
+			super(a);
+		}
+
+		public void action() {
+			if(done()){
+				System.out.println("Human done");
+				return;
+			}
+			
+			GridCellNgh<Human> nghCreator = new GridCellNgh<Human>(grid, myLocation(), Human.class, 1, 1);
+			List<GridCell<Human>> gridCells = nghCreator.getNeighborhood(true);
+			SimUtilities.shuffle(gridCells, RandomHelper.getUniform());
+			
+			if(myLocation().getX()>grid.getDimensions().getWidth() - 21 && state!=State.knowExit)
+				state= State.wandering;
+			//lookup in visionRadius to find exit or security guard
+			vision(myLocation());
+			
+			switch(state){
+			case inRoom:
+				moveTowards(myLocation());
+				break;
+			case wandering:
+				moveExplore(myLocation());
+				
+				break;
+			case knowExit:
+				moveToExit(myLocation());
+				break;
+			}
+			
+			
+			ACLMessage msg = receive(template);
+			if(msg!= null) {
+				System.out.println(msg);
+			}
+		}
+
+		@Override
+		public boolean done() {
+			if(checkDoorAtLocation(myLocation().getX(),myLocation().getY())){
+				System.out.println("Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
+				takeDown();
+				return true;
+			}
+			return false;
+		}
+	}
+	
 }

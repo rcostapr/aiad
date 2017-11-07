@@ -4,3 +4,4 @@ MessageCenter.log4j.properties
 velocity.log 
 velocity.log.1
 .gitignore
+/bin/
