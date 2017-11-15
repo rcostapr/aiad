@@ -30,9 +30,11 @@ public class Security extends Agent{
 	protected Ontology serviceOntology;	
 	protected ACLMessage myCfp;	
 
-	public Security(Grid<Object> grid, Context<Object> context) {
+	public Security(Grid<Object> grid, Context<Object> context, int startX, int startY) {
 		this.grid = grid;
 		this.context = context;
+		context.add(this);
+		grid.moveTo(this, startX, startY);
 	}
 
 

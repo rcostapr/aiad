@@ -116,15 +116,14 @@ public class SceneBuilder {
 
 	public void createSecurity() {
 		for (int i = 0; i < securityCount; i++) {
-			Security newSecurity = new Security(grid, context);
-			context.add(newSecurity);
+			
 			int startX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 1);
 			int startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
 			while (!isValidPosition(startX, startY, grid)) {
 				startX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 1);
 				startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
 			}
-			grid.moveTo(newSecurity, startX, startY);
+			Security newSecurity = new Security(grid, context, startX, startY);
 			try {
 				agentContainer.acceptNewAgent("security" + i, newSecurity).start();
 			} catch (StaleProxyException e) {
