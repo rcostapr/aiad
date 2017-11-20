@@ -43,6 +43,23 @@ public class Human extends Agent{
 	private int exitX;
 	private int exitY;
 	
+	private int exitAlive;
+	private int alive;
+	
+	public int getAlive() {
+		return alive;
+	}
+
+	public void setAlive(int alive) {
+		this.alive = alive;
+	}
+	public int getDead() {
+		if (alive==0)
+			return 1; 
+		else 
+			return 0;
+	}
+
 	protected Codec codec;
 	protected Ontology serviceOntology;	
 	protected ACLMessage myCfp;	
@@ -56,6 +73,8 @@ public class Human extends Agent{
 		this.condition=condition;
 		this.altruism=altruism;
 		this.visionRadius=visionRadius;
+		this.exitAlive = 0;
+		this.alive=1;
 	}
 
 	public Zones currentZone(int x, int y){
@@ -715,10 +734,18 @@ public class Human extends Agent{
 	@Override
 	protected void takeDown() {
 		System.out.println("Human out alive");
-		context.remove(this);
+		//context.remove(this);
 		// notify results collector
 	}
 	
+	public int getExitAlive() {
+		return exitAlive;
+	}
+
+	public void setExitAlive(int exitAlive) {
+		this.exitAlive = exitAlive;
+	}
+
 	/**
 	 * MoveHandler behaviour
 	 */
@@ -769,6 +796,7 @@ public class Human extends Agent{
 		public boolean done() {
 			if(checkDoorAtLocation(myLocation().getX(),myLocation().getY())){
 				System.out.println("Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
+				exitAlive = 1;
 				takeDown();
 				return true;
 			}

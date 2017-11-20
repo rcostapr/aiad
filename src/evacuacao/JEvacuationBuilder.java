@@ -53,15 +53,7 @@ public class JEvacuationBuilder extends RepastSLauncher {
 
 	private void launchAgents() {
 		System.out.println("launchAgents");
-		AID resultsCollectorAID = null;
 		if (USE_RESULTS_COLLECTOR) {
-			// create results collector
-			/*
-			 * ResultsCollector resultsCollector = new ResultsCollector(N_HUMANS
-			 * + N_SECURITY); mainContainer.acceptNewAgent("ResultsCollector",
-			 * resultsCollector).start(); resultsCollectorAID =
-			 * resultsCollector.getAID();
-			 */
 			myScene.setAgentContainer(agentContainer);
 			myScene.createHumans();
 			myScene.createSecurity();
@@ -75,10 +67,6 @@ public class JEvacuationBuilder extends RepastSLauncher {
 		System.out.println("context start");
 		
 		myScene = new SceneBuilder(context);
-
-		//createHumans(grid, context, humanCount, radiusVision);
-
-		//createSecurity(grid, context, securityCount);
 
 		// Create agent interaction network
 		NetworkBuilder<Object> netBuilder = new NetworkBuilder<Object>("Evacuation network", context, true);

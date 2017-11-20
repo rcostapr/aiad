@@ -28,13 +28,25 @@ public class Security extends Agent{
 	
 	protected Codec codec;
 	protected Ontology serviceOntology;	
-	protected ACLMessage myCfp;	
+	protected ACLMessage myCfp;
+	private int exitAlive;	
 
 	public Security(Grid<Object> grid, Context<Object> context, int startX, int startY) {
 		this.grid = grid;
 		this.context = context;
 		context.add(this);
 		grid.moveTo(this, startX, startY);
+		this.exitAlive = 0;
+	}
+
+
+	public int getExitAlive() {
+		return exitAlive;
+	}
+
+
+	public void setExitAlive(int exitAlive) {
+		this.exitAlive = exitAlive;
 	}
 
 
@@ -219,6 +231,7 @@ public class Security extends Agent{
 
 	@Override
 	protected void takeDown() {
+		this.exitAlive = 1;
 		System.out.println("Security out alive");
 		context.remove(this);
 		List<Security> people = new ArrayList<Security>();
@@ -259,7 +272,8 @@ public class Security extends Agent{
 			List<Human> humans = new ArrayList<Human>();
 			for (Object obj : grid.getObjects()) {
 				if (obj instanceof Human) {
-					humans.add((Human) obj);
+					if(((Human) obj).getExitAlive()==0)
+						humans.add((Human) obj);
 				}
 			}
 			System.out.println("Humans qtd: " + humans.size());
