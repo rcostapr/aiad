@@ -23,7 +23,9 @@ public class ServiceOntology extends BeanOntology {
 		super(ONTOLOGY_NAME);
 		
 		try {
+			// add all Concept, Predicate and AgentAction
 			add(HelpRequest.class);
+			add(HelpReply.class);
 			
 		} catch(BeanOntologyException boe) {
 			boe.printStackTrace();
