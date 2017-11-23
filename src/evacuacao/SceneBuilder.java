@@ -5,6 +5,9 @@ import repast.simphony.context.Context;
 import repast.simphony.context.space.grid.GridFactory;
 import repast.simphony.context.space.grid.GridFactoryFinder;
 import repast.simphony.engine.environment.RunEnvironment;
+import repast.simphony.engine.schedule.IAction;
+import repast.simphony.engine.schedule.ISchedule;
+import repast.simphony.engine.schedule.ScheduleParameters;
 import repast.simphony.parameter.Parameters;
 import repast.simphony.random.RandomHelper;
 import repast.simphony.space.grid.Grid;
@@ -213,6 +216,22 @@ public class SceneBuilder {
 			}
 		}
 		return true;
+	}
+	
+	public void scheduleFire(){
+		int startX = RandomHelper.nextIntFromTo(1, 21);
+		int startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+		while (!isValidPosition(startX, startY, grid)) {
+			startX = RandomHelper.nextIntFromTo(1, 21);
+			startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+		}
+		new ScheduleFire(grid, context, startX, startY);
+		
+		//System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());
+		//ISchedule schedule = RunEnvironment.getInstance().getCurrentSchedule();
+		//ScheduleParameters scheduleParams = ScheduleParameters.createOneTime(5.0);
+		//System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());
+		//schedule.schedule(scheduleParams, "createFire");
 	}
 
 }

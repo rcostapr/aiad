@@ -233,16 +233,16 @@ public class Security extends Agent{
 	protected void takeDown() {
 		this.exitAlive = 1;
 		System.out.println("Security out alive");
-		context.remove(this);
+		//context.remove(this);
 		List<Security> people = new ArrayList<Security>();
 		for (Object obj : grid.getObjects()) {
 			if (obj instanceof Security) {
-				people.add((Security) obj);
+				if(((Security) obj).getExitAlive() == 0)
+					people.add((Security) obj);
 			}
 		}
 		if (people.size() == 0)
 			RunEnvironment.getInstance().endRun();
-		// notify results collector
 		
 	}
 	

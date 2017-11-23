@@ -53,12 +53,11 @@ public class Human extends Agent {
 
 	private int exitAlive;
 	private int alive;
-	
+
 	private int fireAlert = 0;
 
 	boolean handlingHelpRequest = false;
 	private Human helpedHuman;
-	
 
 	protected Codec codec;
 	protected Ontology serviceOntology;
@@ -72,7 +71,7 @@ public class Human extends Agent {
 	public void setFireAlert(int fireAlert) {
 		this.fireAlert = fireAlert;
 	}
-	
+
 	public int getAlive() {
 		return alive;
 	}
@@ -527,6 +526,18 @@ public class Human extends Agent {
 			if (validPosition(i + 1, j - 1)) {
 				possibleMoves.add(new GridPoint(i + 1, j - 1));
 			}
+			
+			if (validPosition(i - 1, j - 1)) {
+				possibleMoves.add(new GridPoint(i + 1, j - 1));
+			}
+			
+			if (validPosition(i - 1, j + 1)) {
+				possibleMoves.add(new GridPoint(i + 1, j - 1));
+			}
+			
+			if (validPosition(i - 1, j)) {
+				possibleMoves.add(new GridPoint(i + 1, j - 1));
+			}
 
 			if (!possibleMoves.isEmpty()) {
 				int move_index = RandomHelper.nextIntFromTo(0, possibleMoves.size() - 1);
@@ -560,10 +571,6 @@ public class Human extends Agent {
 		if (doors.size() > 0) {
 			for (int i = 0; i < doors.size(); i++) {
 				double distVal = Math.hypot(myLocation().getX() - doors.get(i).getLocation().getX(), myLocation().getY() - doors.get(i).getLocation().getY());
-				// System.out.println(myLocation().getX() + " " +
-				// myLocation().getY() + " " + doors.get(i).getLocation().getX()
-				// + " "
-				// + doors.get(i).getLocation().getX() + " " + distVal);
 				if (distVal < distToExit) {
 					distToExit = distVal;
 					indexDoor = i;
@@ -722,8 +729,8 @@ public class Human extends Agent {
 	public void setExitAlive(int exitAlive) {
 		this.exitAlive = exitAlive;
 	}
-	
-	public void findNearHumans(int radius){
+
+	public void findNearHumans(int radius) {
 		ArrayList<AID> neighboursList = new ArrayList<AID>();
 		GridCellNgh<Human> nghCreator = new GridCellNgh<Human>(grid, myLocation(), Human.class, radius, radius);
 		List<GridCell<Human>> gridCells = nghCreator.getNeighborhood(true);
@@ -743,7 +750,7 @@ public class Human extends Agent {
 
 		}
 	}
-	
+
 	public ArrayList<AID> findNearAgents(Agent myAgent, int radius) {
 		ArrayList<AID> neighboursList = new ArrayList<AID>();
 
@@ -774,10 +781,16 @@ public class Human extends Agent {
 		// TODO
 		// Necessário criar o agent fogo
 		// Fazer entrar o fogo aleatóriamente na grid
-		// Humans no moveHandler no movimento aleatório quando for visto o fogo é ativado o fireDetectedBehaviour
- 		addBehaviour(new moveHandler(this));
+		// Humans no moveHandler no movimento aleatório quando for visto o fogo
+		// é ativado o fireDetectedBehaviour
 		addBehaviour(new fireDetectedBehaviour(this));
+		// #################################
+		// Movimento Aleatório das Pessoas
+		addBehaviour(new moveHandler(this));
+		// Help Behaviour - Quando recebe um pedido de ajuda
 		addBehaviour(new HelpBehaviour(this));
+		// Nota: faz o pedido de ajuada quando o fogo é detetado
+		
 	}
 
 	@Override
@@ -792,7 +805,7 @@ public class Human extends Agent {
 	 */
 	class fireDetectedBehaviour extends SimpleBehaviour {
 		private static final long serialVersionUID = 1L;
-		//Alert of Fire
+		// Alert of Fire
 		private boolean alertsend;
 
 		public fireDetectedBehaviour(Agent a) {
@@ -812,24 +825,25 @@ public class Human extends Agent {
 
 			// make help request
 			ACLMessage msg = new ACLMessage(ACLMessage.PROPAGATE);
-			
+
 			// Define who's gone receive the message
 			for (AID human : humanNear)
 				msg.addReceiver(human);
-			
+
 			// Message Content
 			msg.setContent(FIRE_MESSAGE);
 			msg.setLanguage(codec.getName());
 			msg.setOntology(serviceOntology.getName());
-			
+
 			// Send message
 			send(msg);
+			// System.out.println("Send message : " + getAID());
 
 			alertsend = true;
 		}
 
 		public boolean done() {
-			//When alert send remove this Behaviour
+			// When alert send remove this Behaviour from agent
 			return alertsend;
 		}
 	}
@@ -873,8 +887,8 @@ public class Human extends Agent {
 			} else {
 				myCfp = receive(template);
 			}
-			
-			if(myCfp != null && myCfp.getPerformative()== ACLMessage.CFP) {
+
+			if (myCfp != null && myCfp.getPerformative() == ACLMessage.CFP) {
 
 				Class<? extends Object> messageType = null;
 
@@ -899,7 +913,8 @@ public class Human extends Agent {
 			try {
 				confirmation = (HelpRequest) getContentManager().extractContent(request);
 				if (getAlive() == 0) {
-					//System.out.println("HelpRequest from dead " + request.getSender().getLocalName());
+					// System.out.println("HelpRequest from dead " +
+					// request.getSender().getLocalName());
 					return;
 				}
 			} catch (CodecException | OntologyException e1) {
@@ -919,7 +934,7 @@ public class Human extends Agent {
 
 					handlingHelpRequest = true;
 
-					//System.out.println("HelpReply sent by" + getLocalName());
+					// System.out.println("HelpReply sent by" + getLocalName());
 					return;
 				} catch (CodecException | OntologyException e) {
 					e.printStackTrace();
@@ -940,8 +955,7 @@ public class Human extends Agent {
 	 * MoveHandler behaviour
 	 */
 	class moveHandler extends SimpleBehaviour {
-		private MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.PROPAGATE),
-				MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME));
+		
 		private static final long serialVersionUID = 1L;
 
 		public moveHandler(Agent a) {
@@ -961,7 +975,8 @@ public class Human extends Agent {
 			if (myLocation().getX() > grid.getDimensions().getWidth() - 21 && state != State.knowExit)
 				state = State.wandering;
 			// lookup in visionRadius to find exit or security guard
-			vision(myLocation());
+			//if(fireAlert==1)
+				vision(myLocation());
 
 			switch (state) {
 			case inRoom:
@@ -976,24 +991,32 @@ public class Human extends Agent {
 				break;
 			}
 
-			ACLMessage msg = receive(template);
-			if (msg != null) {
-				if (msg.getContent().equals(FIRE_MESSAGE))
-					fireAlert=1;
-				System.out.println(msg.getContent());
-			}
+			
 		}
 
 		@Override
 		public boolean done() {
 			if (checkDoorAtLocation(myLocation().getX(), myLocation().getY())) {
-				System.out.println("Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
+				System.out.println(getLocalName() + " Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
 				exitAlive = 1;
 				takeDown();
 				return true;
 			}
 			return false;
 		}
+		
+		private void sendFireAlert(){
+			MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.PROPAGATE),
+					MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME));
+			ACLMessage msg = receive(template);
+			if (msg != null) {
+				if (msg.getContent().equals(FIRE_MESSAGE)) {
+					fireAlert = 1;
+					System.out.println(msg.getContent());
+				}
+			}
+		}
+		
 	}
 
 }

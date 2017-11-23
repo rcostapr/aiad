@@ -60,6 +60,8 @@ public class JEvacuationBuilder extends RepastSLauncher {
 			
 		}
 		System.out.println("launchAgents END");
+		System.out.println("Schedule Fire");
+		myScene.scheduleFire();
 	}
 
 	@Override
