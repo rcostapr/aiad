@@ -15,6 +15,10 @@
       <string>repast.simphony.visualization.editedStyle.EditedStyle2D</string>
     </entry>
     <entry>
+      <string>evacuacao.Fire</string>
+      <string>repast.simphony.visualization.editedStyle.EditedStyle2D</string>
+    </entry>
+    <entry>
       <string>evacuacao.Security</string>
       <string>repast.simphony.visualization.editedStyle.EditedStyle2D</string>
     </entry>
@@ -33,6 +37,10 @@
       <string>evacuacao.Human.style_0.xml</string>
     </entry>
     <entry>
+      <string>evacuacao.Fire</string>
+      <string>evacuacao.Fire.style_2.xml</string>
+    </entry>
+    <entry>
       <string>evacuacao.Security</string>
       <string>evacuacao.Security.style_2.xml</string>
     </entry>
@@ -47,7 +55,7 @@
     <pType>LAST</pType>
     <duration>-1.0</duration>
     <frequency>REPEAT</frequency>
-    <hashCode>-168485746</hashCode>
+    <hashCode>-240600500</hashCode>
   </schedParams>
   <layoutClassName>foo.bar.baz</layoutClassName>
   <layoutProjection>grid</layoutProjection>
@@ -64,6 +72,10 @@
     <entry>
       <string>evacuacao.Human</string>
       <int>0</int>
+    </entry>
+    <entry>
+      <string>evacuacao.Fire</string>
+      <int>4</int>
     </entry>
     <entry>
       <string>evacuacao.Security</string>
