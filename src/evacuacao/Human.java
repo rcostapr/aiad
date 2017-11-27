@@ -526,15 +526,15 @@ public class Human extends Agent {
 			if (validPosition(i + 1, j - 1)) {
 				possibleMoves.add(new GridPoint(i + 1, j - 1));
 			}
-			
+
 			if (validPosition(i - 1, j - 1)) {
 				possibleMoves.add(new GridPoint(i + 1, j - 1));
 			}
-			
+
 			if (validPosition(i - 1, j + 1)) {
 				possibleMoves.add(new GridPoint(i + 1, j - 1));
 			}
-			
+
 			if (validPosition(i - 1, j)) {
 				possibleMoves.add(new GridPoint(i + 1, j - 1));
 			}
@@ -769,6 +769,23 @@ public class Human extends Agent {
 		return neighboursList;
 	}
 
+	public ArrayList<Fire> findNearFire(int radius) {
+		ArrayList<Fire> neighboursFire = new ArrayList<Fire>();
+
+		GridCellNgh<Fire> neighbourhood = new GridCellNgh<Fire>(grid, myLocation(), Fire.class, radius, radius);
+		List<GridCell<Fire>> nghPoints = neighbourhood.getNeighborhood(false);
+
+		for (GridCell<Fire> fire : nghPoints) {
+			if (fire.size() > 0) {
+				Iterable<Fire> iterable = fire.items();
+				for (Fire myFire : iterable) {
+					neighboursFire.add(myFire);
+				}
+			}
+		}
+		return neighboursFire;
+	}
+
 	@Override
 	public void setup() {
 		// register language and ontology
@@ -790,7 +807,7 @@ public class Human extends Agent {
 		// Help Behaviour - Quando recebe um pedido de ajuda
 		addBehaviour(new HelpBehaviour(this));
 		// Nota: faz o pedido de ajuada quando o fogo é detetado
-		
+
 	}
 
 	@Override
@@ -816,30 +833,40 @@ public class Human extends Agent {
 		public void action() {
 			if (done())
 				return;
+			// FIRE DETECTIONS
+			ArrayList<Fire> fireList = findNearFire(10);
+			if (fireList.size() > 0) {
+				
+				fireAlert=1;
+				
+				System.out.println(this.getAgent().getLocalName() + " Found Fire at:");
+				for(Fire myFire : fireList)
+					System.out.println(myFire.getLocation().getX() + " " + myFire.getLocation().getY());
+				
+				// find people in the surrounding area
+				ArrayList<AID> humanNear = findNearAgents(myAgent, 2);
+				if (humanNear.isEmpty()) {
+					return;
+				}
 
-			// find people in the surrounding area
-			ArrayList<AID> humanNear = findNearAgents(myAgent, 2);
-			if (humanNear.isEmpty()) {
-				return;
+				// make help request
+				ACLMessage msg = new ACLMessage(ACLMessage.PROPAGATE);
+
+				// Define who's gone receive the message
+				for (AID human : humanNear)
+					msg.addReceiver(human);
+
+				// Message Content
+				msg.setContent(FIRE_MESSAGE);
+				msg.setLanguage(codec.getName());
+				msg.setOntology(serviceOntology.getName());
+
+				// Send message
+				send(msg);
+				// System.out.println("Send message : " + getAID());
+
+				alertsend = true;
 			}
-
-			// make help request
-			ACLMessage msg = new ACLMessage(ACLMessage.PROPAGATE);
-
-			// Define who's gone receive the message
-			for (AID human : humanNear)
-				msg.addReceiver(human);
-
-			// Message Content
-			msg.setContent(FIRE_MESSAGE);
-			msg.setLanguage(codec.getName());
-			msg.setOntology(serviceOntology.getName());
-
-			// Send message
-			send(msg);
-			// System.out.println("Send message : " + getAID());
-
-			alertsend = true;
 		}
 
 		public boolean done() {
@@ -955,7 +982,7 @@ public class Human extends Agent {
 	 * MoveHandler behaviour
 	 */
 	class moveHandler extends SimpleBehaviour {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		public moveHandler(Agent a) {
@@ -975,8 +1002,7 @@ public class Human extends Agent {
 			if (myLocation().getX() > grid.getDimensions().getWidth() - 21 && state != State.knowExit)
 				state = State.wandering;
 			// lookup in visionRadius to find exit or security guard
-			//if(fireAlert==1)
-				vision(myLocation());
+			vision(myLocation());
 
 			switch (state) {
 			case inRoom:
@@ -991,7 +1017,6 @@ public class Human extends Agent {
 				break;
 			}
 
-			
 		}
 
 		@Override
@@ -1004,8 +1029,8 @@ public class Human extends Agent {
 			}
 			return false;
 		}
-		
-		private void sendFireAlert(){
+
+		private void sendFireAlert() {
 			MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.PROPAGATE),
 					MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME));
 			ACLMessage msg = receive(template);
@@ -1016,7 +1041,7 @@ public class Human extends Agent {
 				}
 			}
 		}
-		
+
 	}
 
 }
