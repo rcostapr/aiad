@@ -77,19 +77,18 @@ public class Security extends Agent {
 		List<Door> doors = new ArrayList<Door>();
 		for (Object obj : grid.getObjects()) {
 			if (obj instanceof Door) {
-				doors.add((Door) obj);
+				if (validPath(((Door) obj).getLocation()))
+					doors.add((Door) obj);
 			}
 		}
 		if (doors.size() > 0) {
 			for (int i = 0; i < doors.size(); i++) {
-				if (validPath(doors.get(i).getLocation())) {
 					double distVal = Math.hypot(myLocation().getX() - doors.get(i).getLocation().getX(),
 							myLocation().getY() - doors.get(i).getLocation().getY());
 					if (distVal < distToExit) {
 						distToExit = distVal;
 						indexDoor = i;
 					}
-				}
 			}
 
 			if (indexDoor > -1) {
@@ -216,6 +215,7 @@ public class Security extends Agent {
 
 	@Override
 	public void setup() {
+		System.out.println("#########   Animation START SEC #########");
 		// register language and ontology
 		codec = new SLCodec();
 		serviceOntology = ServiceOntology.getInstance();
@@ -317,9 +317,9 @@ public class Security extends Agent {
 		@Override
 		public boolean done() {
 			if (checkDoorAtLocation(myLocation().getX(), myLocation().getY())) {
-				System.out.println("Security Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
+				System.out.println(getLocalName() + " Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
 				exitAlive = 1;
-				System.out.println("Security out alive");
+				System.out.println(getLocalName() + " out alive");
 				takeDown();
 				return true;
 			}

@@ -1,20 +1,9 @@
 package evacuacao;
 
-import jade.core.AID;
 import jade.core.Profile;
 import jade.core.ProfileImpl;
-import jade.wrapper.StaleProxyException;
 import repast.simphony.context.Context;
 import repast.simphony.context.space.graph.NetworkBuilder;
-import repast.simphony.context.space.grid.GridFactory;
-import repast.simphony.context.space.grid.GridFactoryFinder;
-import repast.simphony.engine.environment.RunEnvironment;
-import repast.simphony.parameter.Parameters;
-import repast.simphony.random.RandomHelper;
-import repast.simphony.space.grid.Grid;
-import repast.simphony.space.grid.GridBuilderParameters;
-import repast.simphony.space.grid.SimpleGridAdder;
-import repast.simphony.space.grid.WrapAroundBorders;
 import sajas.core.Runtime;
 import sajas.sim.repasts.RepastSLauncher;
 import sajas.wrapper.ContainerController;
@@ -66,6 +55,7 @@ public class JEvacuationBuilder extends RepastSLauncher {
 
 	@Override
 	public Context<?> build(Context<Object> context) {
+		
 		System.out.println("context start");
 		
 		myScene = new SceneBuilder(context);

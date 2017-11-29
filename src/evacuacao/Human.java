@@ -20,6 +20,7 @@ import repast.simphony.space.grid.Grid;
 import repast.simphony.space.grid.GridPoint;
 import repast.simphony.util.SimUtilities;
 import sajas.core.Agent;
+import sajas.core.behaviours.CyclicBehaviour;
 import sajas.core.behaviours.SimpleBehaviour;
 import jade.content.lang.Codec;
 import jade.content.lang.Codec.CodecException;
@@ -118,6 +119,8 @@ public class Human extends Agent {
 		this.visionRadius = visionRadius;
 		this.exitAlive = 0;
 		this.alive = 1;
+		
+		// TODO Behaviour
 	}
 
 	public Zones currentZone(int x, int y) {
@@ -186,7 +189,7 @@ public class Human extends Agent {
 
 			// Send message
 			send(msgSend);
-			System.out.println(getLocalName() + " Msg send to Security.");
+			//System.out.println(getLocalName() + " Msg send to Security.");
 			return true;
 		}
 		return false;
@@ -209,413 +212,6 @@ public class Human extends Agent {
 
 	private GridPoint myLocation() {
 		return grid.getLocation(this);
-	}
-
-	/*
-	 * Functions as agent's "vision" detecting exits or security guards in a
-	 * circle with radius of visionRadius parameter
-	 */
-	private boolean vision(GridPoint pt) {
-		int i = pt.getX();
-		int j = pt.getY();
-		for (int iter = 1; iter <= this.visionRadius; iter++) {
-			if (validPosition(i, j + iter)) {
-				if (checkDoorAtLocation(i, j + iter)) {
-					exitX = i;
-					exitY = j + iter;
-					state = State.knowExit;
-					return true;
-				}
-				// check security guard and ask for exit location
-			}
-			if (validPosition(i + iter, j + iter)) {
-				if (checkDoorAtLocation(i + iter, j + iter)) {
-					exitX = i + iter;
-					exitY = j + iter;
-					state = State.knowExit;
-					return true;
-				}
-				// check security guard and ask for exit location
-			}
-			if (validPosition(i + iter, j)) {
-				if (checkDoorAtLocation(i + iter, j)) {
-					exitX = i + iter;
-					exitY = j;
-					state = State.knowExit;
-					return true;
-				}
-				// check security guard and ask for exit location
-			}
-			if (validPosition(i, j - iter)) {
-				if (checkDoorAtLocation(i, j - iter)) {
-					exitX = i;
-					exitY = j - iter;
-					state = State.knowExit;
-					return true;
-				}
-				// check security guard and ask for exit location
-			}
-			if (validPosition(i + iter, j - iter)) {
-				if (checkDoorAtLocation(i + iter, j - iter)) {
-					exitX = i + iter;
-					exitY = j - iter;
-					state = State.knowExit;
-					return true;
-				}
-				// check security guard and ask for exit location
-			}
-			if (validPosition(i - iter, j)) {
-				if (checkDoorAtLocation(i - iter, j)) {
-					exitX = i - iter;
-					exitY = j;
-					state = State.knowExit;
-					return true;
-				}
-				// check security guard and ask for exit location
-			}
-			if (validPosition(i - iter, j - iter)) {
-				if (checkDoorAtLocation(i - iter, j - iter)) {
-					exitX = i - iter;
-					exitY = j - iter;
-					state = State.knowExit;
-					return true;
-				}
-				// check security guard and ask for exit location
-			}
-			if (validPosition(i - iter, j + iter)) {
-				if (checkDoorAtLocation(i - iter, j + iter)) {
-					exitX = i - iter;
-					exitY = j + iter;
-					state = State.knowExit;
-					return true;
-				}
-				// check security guard and ask for exit location
-			}
-		}
-		return false;
-	}
-
-	public void nextZone(Zones currentZone) {
-		ArrayList<Zones> possibleZones = new ArrayList<Zones>();
-		switch (currentZone) {
-		case RightWall:
-			if (!explored.contains(Zones.bottomRight)) {
-				possibleZones.add(Zones.bottomRight);
-			}
-			if (!explored.contains(Zones.topRight)) {
-				possibleZones.add(Zones.topRight);
-			}
-			if (!possibleZones.isEmpty()) {
-				int zone_index = RandomHelper.nextIntFromTo(0, possibleZones.size() - 1);
-				nextZone = possibleZones.get(zone_index);
-				fromZone = Zones.RightWall;
-			} else
-				nextZone = Zones.nowhere;
-			break;
-		case bottomLeft:
-			if (!explored.contains(Zones.bottomRight)) {
-				possibleZones.add(Zones.bottomRight);
-			}
-			if (!explored.contains(Zones.topLeft)) {
-				possibleZones.add(Zones.topLeft);
-			}
-			if (!explored.contains(Zones.bottomWall)) {
-				possibleZones.add(Zones.bottomWall);
-			}
-			if (!possibleZones.isEmpty()) {
-				int zone_index = RandomHelper.nextIntFromTo(0, possibleZones.size() - 1);
-				nextZone = possibleZones.get(zone_index);
-				fromZone = Zones.bottomLeft;
-			} else
-				nextZone = Zones.nowhere;
-			break;
-		case bottomRight:
-			if (!explored.contains(Zones.topRight)) {
-				possibleZones.add(Zones.topRight);
-			}
-			if (!explored.contains(Zones.bottomLeft)) {
-				possibleZones.add(Zones.bottomLeft);
-			}
-			if (!explored.contains(Zones.bottomWall)) {
-				possibleZones.add(Zones.bottomWall);
-			}
-			if (!possibleZones.isEmpty()) {
-				int zone_index = RandomHelper.nextIntFromTo(0, possibleZones.size() - 1);
-				nextZone = possibleZones.get(zone_index);
-				fromZone = Zones.bottomRight;
-			} else
-				nextZone = Zones.nowhere;
-			break;
-		case bottomWall:
-			if (!explored.contains(Zones.bottomRight)) {
-				possibleZones.add(Zones.bottomRight);
-			}
-			if (!explored.contains(Zones.bottomLeft)) {
-				possibleZones.add(Zones.bottomLeft);
-			}
-			if (!explored.contains(Zones.topWall)) {
-				possibleZones.add(Zones.topWall);
-			}
-			if (!possibleZones.isEmpty()) {
-				int zone_index = RandomHelper.nextIntFromTo(0, possibleZones.size() - 1);
-				nextZone = possibleZones.get(zone_index);
-				fromZone = Zones.bottomWall;
-			} else
-				nextZone = Zones.nowhere;
-			break;
-		case topLeft:
-			if (!explored.contains(Zones.topRight)) {
-				possibleZones.add(Zones.topRight);
-			}
-			if (!explored.contains(Zones.bottomLeft)) {
-				possibleZones.add(Zones.bottomLeft);
-			}
-			if (!explored.contains(Zones.topWall)) {
-				possibleZones.add(Zones.topWall);
-			}
-			if (!possibleZones.isEmpty()) {
-				int zone_index = RandomHelper.nextIntFromTo(0, possibleZones.size() - 1);
-				nextZone = possibleZones.get(zone_index);
-				fromZone = Zones.topLeft;
-			} else
-				nextZone = Zones.nowhere;
-			break;
-		case topRight:
-			if (!explored.contains(Zones.topLeft)) {
-				possibleZones.add(Zones.topLeft);
-			}
-			if (!explored.contains(Zones.bottomRight)) {
-				possibleZones.add(Zones.bottomRight);
-			}
-			if (!explored.contains(Zones.topWall)) {
-				possibleZones.add(Zones.topWall);
-			}
-			if (!possibleZones.isEmpty()) {
-				int zone_index = RandomHelper.nextIntFromTo(0, possibleZones.size() - 1);
-				nextZone = possibleZones.get(zone_index);
-				fromZone = Zones.topRight;
-			} else
-				nextZone = Zones.nowhere;
-			break;
-		case topWall:
-			if (!explored.contains(Zones.topRight)) {
-				possibleZones.add(Zones.topRight);
-			}
-			if (!explored.contains(Zones.topLeft)) {
-				possibleZones.add(Zones.topLeft);
-			}
-			if (!explored.contains(Zones.bottomWall)) {
-				possibleZones.add(Zones.bottomWall);
-			}
-			if (!possibleZones.isEmpty()) {
-				int zone_index = RandomHelper.nextIntFromTo(0, possibleZones.size() - 1);
-				nextZone = possibleZones.get(zone_index);
-				fromZone = Zones.topWall;
-			} else
-				nextZone = Zones.nowhere;
-			break;
-		case nowhere:
-			break;
-		default:
-			break;
-
-		}
-	}
-
-	public void moveToZone(int i, int j) {
-		switch (this.nextZone) {
-		case RightWall:
-			if (this.fromZone == Zones.bottomRight) {
-				if (!moveUp(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			if (this.fromZone == Zones.topRight) {
-				if (!moveDown(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			break;
-		case bottomLeft:
-			if (this.fromZone == Zones.bottomRight) {
-				if (!moveLeft(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			if (this.fromZone == Zones.topLeft) {
-				if (!moveDown(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			if (this.fromZone == Zones.bottomWall) {
-				if (!moveLeft(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			break;
-		case bottomRight:
-			if (this.fromZone == Zones.topRight) {
-				if (!moveDown(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			if (this.fromZone == Zones.bottomLeft) {
-				if (!moveRight(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-
-			if (this.fromZone == Zones.bottomWall) {
-				if (!moveRight(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			if (this.fromZone == Zones.RightWall) {
-				if (moveDown(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			break;
-		case bottomWall:
-			if (this.fromZone == Zones.bottomRight) {
-				if (!moveLeft(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			if (this.fromZone == Zones.bottomLeft) {
-				if (!moveRight(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			if (this.fromZone == Zones.topWall) {
-				if (!moveDown(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			break;
-		case topLeft:
-			if (this.fromZone == Zones.topRight) {
-				if (!moveLeft(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			if (this.fromZone == Zones.bottomLeft) {
-				if (!moveUp(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			if (this.fromZone == Zones.topWall) {
-				if (!moveLeft(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			break;
-		case topRight:
-			if (this.fromZone == Zones.topLeft) {
-				if (!moveRight(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			if (this.fromZone == Zones.RightWall) {
-				if (!moveUp(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			if (this.fromZone == Zones.bottomRight) {
-				if (!moveUp(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			if (this.fromZone == Zones.topWall) {
-				if (!moveRight(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			break;
-		case topWall:
-			if (this.fromZone == Zones.topRight) {
-				if (!moveDown(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			if (this.fromZone == Zones.topLeft) {
-				if (!moveRight(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			if (this.fromZone == Zones.bottomWall) {
-				if (!moveUp(i, j)) {
-					this.nextZone = Zones.nowhere;
-				}
-			}
-			break;
-		case nowhere:
-			break;
-		default:
-			break;
-
-		}
-	}
-
-	public void moveExplore(GridPoint pt) {
-		int i = pt.getX();
-		int j = pt.getY();
-		Zones currentZone = currentZone(myLocation().getX(), myLocation().getY());
-		if (!explored.contains(currentZone))
-			explored.add(currentZone);
-		if (this.nextZone == currentZone && this.nextZone != Zones.nowhere) {
-			nextZone(currentZone);
-		}
-		if (this.nextZone != currentZone && this.nextZone != Zones.nowhere) {
-			moveToZone(i, j);
-		}
-		if (this.nextZone == Zones.nowhere) {
-
-			if (currentZone != Zones.nowhere) {
-				nextZone(currentZone);
-				moveToZone(i, j);
-				return;
-			}
-
-			ArrayList<GridPoint> possibleMoves = new ArrayList<GridPoint>();
-
-			if (validPosition(i, j + 1)) {
-				possibleMoves.add(new GridPoint(i, j + 1));
-			}
-			if (validPosition(i + 1, j + 1)) {
-				possibleMoves.add(new GridPoint(i + 1, j + 1));
-			}
-			if (validPosition(i + 1, j)) {
-				possibleMoves.add(new GridPoint(i + 1, j));
-			}
-			if (validPosition(i, j - 1)) {
-				possibleMoves.add(new GridPoint(i, j - 1));
-			}
-
-			if (validPosition(i + 1, j - 1)) {
-				possibleMoves.add(new GridPoint(i + 1, j - 1));
-			}
-
-			if (validPosition(i - 1, j - 1)) {
-				possibleMoves.add(new GridPoint(i + 1, j - 1));
-			}
-
-			if (validPosition(i - 1, j + 1)) {
-				possibleMoves.add(new GridPoint(i + 1, j - 1));
-			}
-
-			if (validPosition(i - 1, j)) {
-				possibleMoves.add(new GridPoint(i + 1, j - 1));
-			}
-
-			if (!possibleMoves.isEmpty()) {
-				int move_index = RandomHelper.nextIntFromTo(0, possibleMoves.size() - 1);
-				grid.moveTo(this, possibleMoves.get(move_index).getX(), possibleMoves.get(move_index).getY());
-				setMoved(true);
-			}
-
-		}
-
 	}
 
 	public void moveToExplore(GridPoint pt) {
@@ -656,7 +252,6 @@ public class Human extends Agent {
 		if (!possibleMoves.isEmpty()) {
 			int move_index = RandomHelper.nextIntFromTo(0, possibleMoves.size() - 1);
 			grid.moveTo(this, possibleMoves.get(move_index).getX(), possibleMoves.get(move_index).getY());
-			setMoved(true);
 		}
 
 	}
@@ -668,6 +263,7 @@ public class Human extends Agent {
 		} else {
 			System.out.println(
 					getLocalName() + " at " + myLocation().getX() + "," + myLocation().getY() + " impossible destiny to " + point.getX() + "," + point.getY());
+					moveToExplore(myLocation());
 		}
 	}
 
@@ -846,9 +442,6 @@ public class Human extends Agent {
 
 		Graph g = new Graph(GRAPH);
 		g.dijkstra(START);
-		// System.out.println(" Distance: " + g.getDist(END));
-		// g.printPath(END);
-		// g.printAllPaths();
 		return g.getDist(END);
 	}
 	
@@ -1055,6 +648,7 @@ public class Human extends Agent {
 
 	@Override
 	public void setup() {
+		System.out.println("#########   Animation START  #########");
 		// register language and ontology
 		codec = new SLCodec();
 		serviceOntology = ServiceOntology.getInstance();
@@ -1071,7 +665,7 @@ public class Human extends Agent {
 		addBehaviour(new receiveFireAlertBehaviour(this));
 		addBehaviour(new receiveInformBehaviour(this));
 		// #################################
-		// Movimento Aleatório das Pessoas
+		// Movement Behaviour
 		addBehaviour(new moveHandler(this));
 		// Help Behaviour - Quando recebe um pedido de ajuda
 		addBehaviour(new HelpBehaviour(this));
@@ -1081,8 +675,28 @@ public class Human extends Agent {
 
 	@Override
 	protected void takeDown() {
+		List<Security> people = new ArrayList<Security>();
+		for (Object obj : grid.getObjects()) {
+			if (obj instanceof Security) {
+				// Ainda não saiu e está vivo
+				if (((Security) obj).getExitAlive() == 0 && ((Security) obj).getAlive() == 1)
+					people.add((Security) obj);
+			}
+		}
+		List<Human> humans = new ArrayList<Human>();
+		for (Object obj : grid.getObjects()) {
+			if (obj instanceof Human) {
+				// Humano ainda não saiu e está vivo Segurança espera
+				if (((Human) obj).getExitAlive() == 0 && ((Human) obj).getAlive() == 1)
+					humans.add((Human) obj);
+			}
+		}
+
+		if ((people.size() + humans.size()) == 0) {
+			System.out.println("#########   Animation END  #########");
+			RunEnvironment.getInstance().endRun();
+		}
 		System.out.println("Human takeDown");
-		// context.remove(this);
 	}
 
 	/**
@@ -1102,6 +716,7 @@ public class Human extends Agent {
 			if (done() || fireAlert==1)
 				return;
 			// FIRE DETECTIONS
+			System.out.println("Execute fireDetectedBehaviour");
 			Parameters params = RunEnvironment.getInstance().getParameters();
 			ArrayList<Fire> fireList = findNearFire((Integer) params.getValue("fire_radius"));
 
@@ -1155,12 +770,9 @@ public class Human extends Agent {
 			}
 			
 		}
-		public boolean done() {
-			// When alert send remove this Behaviour from agent
-			return alertsend;
-		}
 
 		public void repeatAlert() {
+			System.out.println("Execute repeatAlert");
 			if (exitAlive == 0) {
 				System.out.println(getLocalName() + " Repeat Fire Alert.");
 				// find people in the surrounding area
@@ -1188,6 +800,12 @@ public class Human extends Agent {
 
 		}
 
+		@Override
+		public boolean done() {
+			// TODO Auto-generated method stub
+			return false;
+		}
+
 	}
 
 	/**
@@ -1208,7 +826,7 @@ public class Human extends Agent {
 		public void action() {
 			if (done())
 				return;
-
+			System.out.println("Execute receiveFireAlertBehaviour");
 			// Evitar que as pessoas que tenham detetado o fogo enviem o alerta
 			// pois já o enviaram em fireDetectedBehaviour
 			if (fireAlert == 1) {
@@ -1249,11 +867,11 @@ public class Human extends Agent {
 					alertsend = true;
 				}
 			}
-
 		}
 
+		@Override
 		public boolean done() {
-			// When alert send remove this Behaviour from agent
+			// TODO Auto-generated method stub
 			return alertsend;
 		}
 	}
@@ -1261,7 +879,7 @@ public class Human extends Agent {
 	/**
 	 * receiveInform Behaviour
 	 */
-	class receiveInformBehaviour extends SimpleBehaviour {
+	class receiveInformBehaviour extends SimpleBehaviour{
 		private static final long serialVersionUID = 1L;
 		private MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.INFORM),
 				MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME));
@@ -1275,7 +893,7 @@ public class Human extends Agent {
 		public void action() {
 			if (done())
 				return;
-
+			System.out.println("Execute receiveInformBehaviour");
 			ACLMessage msg = receive(template);
 			if (msg != null) {
 				GoToPoint goToPoint;
@@ -1297,8 +915,8 @@ public class Human extends Agent {
 
 		}
 
+		@Override
 		public boolean done() {
-			// When alert send remove this Behaviour from agent
 			return false;
 		}
 	}
@@ -1328,7 +946,7 @@ public class Human extends Agent {
 		public void action() {
 			if (done())
 				return;
-
+			System.out.println("Execute HelpBehaviour");
 			ACLMessage myCfp = null;
 
 			if (handlingHelpRequest) {
@@ -1421,7 +1039,7 @@ public class Human extends Agent {
 				System.out.println("Human " + getLocalName() + " done");
 				return;
 			}
-
+			System.out.println("Execute moveHandler");
 			GridCellNgh<Human> nghCreator = new GridCellNgh<Human>(grid, myLocation(), Human.class, 1, 1);
 			List<GridCell<Human>> gridCells = nghCreator.getNeighborhood(true);
 			SimUtilities.shuffle(gridCells, RandomHelper.getUniform());
@@ -1435,8 +1053,42 @@ public class Human extends Agent {
 				return;
 			}
 
-			GridPoint exitRomsPoint = new GridPoint(20, 12);
-			if (myLocation().getX() < 20 && fireAlert == 1)
+			GridPoint exitRomsPointTop = new GridPoint(19, 20);
+			GridPoint exitRomsPointBottom = new GridPoint(19, 8);
+			GridPoint exitRomsPoint = null;
+			
+			if(getDistBetween(myLocation(),exitRomsPointTop) < getDistBetween(myLocation(),exitRomsPointBottom)){
+				// Choose top Exit
+				if(validPath(exitRomsPointTop)){
+					exitRomsPoint = new GridPoint(20,20);
+					//System.out.println(getLocalName() + " goto exitRomsPointTop.");
+				} else{
+					// There is no path to the shortest exit lets try the other one
+					if(validPath(exitRomsPointBottom)){
+						exitRomsPoint = new GridPoint(20,8);
+						//System.out.println(getLocalName() + " goto exitRomsPointBottom.");
+					} else {
+						//System.out.println(getLocalName() + " is trapped in the fire.");
+					}
+				}
+				
+			} else {
+				// Choose Bottom Exit
+				if(validPath(exitRomsPointBottom)){
+					exitRomsPoint = new GridPoint(20,8);
+					//System.out.println(getLocalName() + " goto exitRomsPointBottom.");
+				} else{
+					// There is no path to the shortest exit lets try the other one
+					if(validPath(exitRomsPointTop)){
+						exitRomsPoint = new GridPoint(20,20);
+						//System.out.println(getLocalName() + " goto exitRomsPointTop.");
+					} else {
+						System.out.println(getLocalName() + " is trapped in the fire.");
+					}
+				}
+			}
+
+			if (myLocation().getX() < 20 && fireAlert == 1 && exitRomsPoint!=null)
 				moveToPoint(exitRomsPoint);
 			else {
 				moveToExplore(myLocation());
@@ -1492,7 +1144,7 @@ public class Human extends Agent {
 					// estiver mais perto
 					int distToSecurity = 99999;
 					System.out.print(
-							getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " visionRadius " + visionRadius + " Found Security :");
+							getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " visionRadius " + visionRadius + " Found Security");
 					for (int i = 0; i < listNearSecurity.size(); i++) {
 						System.out.print(" at position:" + listNearSecurity.get(i).getLocation().getX() + "," + listNearSecurity.get(i).getLocation().getY());
 						int distSecurity = getDistBetween(myLocation(), listNearSecurity.get(i).getLocation());
@@ -1505,18 +1157,6 @@ public class Human extends Agent {
 					System.out.println("");
 				}
 			} // END if (fireAlert == 1)
-
-			/*
-			 * if (myLocation().getX() > grid.getDimensions().getWidth() - 21 &&
-			 * state != State.knowExit) state = State.wandering; // lookup in
-			 * visionRadius to find exit or security guard vision(myLocation());
-			 * 
-			 * switch (state) { case inRoom: // moveTowards(myLocation());
-			 * moveToExplore(myLocation()); break; case wandering:
-			 * moveExplore(myLocation());
-			 * 
-			 * break; case knowExit: moveToExit(myLocation()); break; }
-			 */
 		}
 
 		@Override
@@ -1529,7 +1169,7 @@ public class Human extends Agent {
 					return true;
 				}
 				if (checkSecurityAtLocation(myLocation().getX(), myLocation().getY())) {
-					System.out.println(getLocalName() + " msg send security");
+					System.out.println(getLocalName() + " Msg send to Security");
 				}
 				if (checkFireAtLocation(myLocation().getX(), myLocation().getY())) {
 					alive = 0;
@@ -1541,6 +1181,14 @@ public class Human extends Agent {
 			return false;
 		}
 
+	}
+	
+	public boolean validPath(GridPoint point) {
+		GridPoint nextPoint = getNextPoint(myLocation(), point);
+		if (nextPoint != null) {
+			return true;
+		}
+		return false;
 	}
 
 }

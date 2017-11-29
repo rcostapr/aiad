@@ -54,7 +54,7 @@ public class SceneBuilder {
 
 	}
 	
-	@ScheduledMethod(start = 10, interval = 10)
+	@ScheduledMethod(start = 15, interval = 30)
 	public void step() {
 		List<Fire> fires = new ArrayList<Fire>();
 		for (Object obj : grid.getObjects()) {
