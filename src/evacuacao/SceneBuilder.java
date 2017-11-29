@@ -1,10 +1,14 @@
 package evacuacao;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import jade.wrapper.StaleProxyException;
 import repast.simphony.context.Context;
 import repast.simphony.context.space.grid.GridFactory;
 import repast.simphony.context.space.grid.GridFactoryFinder;
 import repast.simphony.engine.environment.RunEnvironment;
+import repast.simphony.engine.schedule.ScheduledMethod;
 import repast.simphony.parameter.Parameters;
 import repast.simphony.random.RandomHelper;
 import repast.simphony.space.grid.Grid;
@@ -17,11 +21,54 @@ public class SceneBuilder {
 	private Context<Object> context;
 	private Grid<Object> grid;
 	private ContainerController agentContainer;
-	
+
 	private int humanCount;
 	private int securityCount;
 	private int doorsCount;
 	private int radiusVision;
+
+	SceneBuilder(Context<Object> context) {
+		this.context = context;
+
+		try {
+
+			GridFactory gridFactory = GridFactoryFinder.createGridFactory(null);
+			this.grid = gridFactory.createGrid("grid", context,
+					new GridBuilderParameters<Object>(new WrapAroundBorders(), new SimpleGridAdder<Object>(), true, 40, 25));
+
+			Parameters params = RunEnvironment.getInstance().getParameters();
+
+			this.humanCount = (Integer) params.getValue("human_count");
+			this.securityCount = (Integer) params.getValue("security_count");
+			this.doorsCount = (Integer) params.getValue("doors_count");
+			this.radiusVision = (Integer) params.getValue("radius_vision");
+
+			buildWalls(this.grid, context);
+			generateExits(this.grid, context, doorsCount);
+			
+			context.add(this);
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+	}
+	
+	@ScheduledMethod(start = 10, interval = 10)
+	public void step() {
+		List<Fire> fires = new ArrayList<Fire>();
+		for (Object obj : grid.getObjects()) {
+			if (obj instanceof Fire) {
+				if (!((Fire) obj).isFireIsolate())
+					fires.add((Fire) obj);
+			}
+		}
+
+		for (int i = 0; i < fires.size(); i++) {
+			setFire(fires.get(i));
+		}
+
+	}
 	
 	public ContainerController getAgentContainer() {
 		return agentContainer;
@@ -31,31 +78,6 @@ public class SceneBuilder {
 		this.agentContainer = agentContainer;
 	}
 
-	SceneBuilder(Context<Object> context){
-		this.context = context;
-		
-		try {
-			
-			GridFactory gridFactory = GridFactoryFinder.createGridFactory(null);
-			this.grid = gridFactory.createGrid("grid", context,
-					new GridBuilderParameters<Object>(new WrapAroundBorders(), new SimpleGridAdder<Object>(), true, 40, 25));
-			
-			Parameters params = RunEnvironment.getInstance().getParameters();
-			
-			this.humanCount = (Integer) params.getValue("human_count");
-			this.securityCount = (Integer) params.getValue("security_count");
-			this.doorsCount = (Integer) params.getValue("doors_count");
-			this.radiusVision = (Integer) params.getValue("radius_vision");
-			
-			buildWalls(this.grid, context);
-			generateExits(this.grid, context, doorsCount);
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		
-	}
-	
 	private void generateExits(Grid<Object> grid, Context<Object> context, int doorsCount) {
 		while (doorsCount > 0) {
 			double chance = RandomHelper.nextDoubleFromTo(0, 1);
@@ -116,7 +138,7 @@ public class SceneBuilder {
 
 	public void createSecurity() {
 		for (int i = 0; i < securityCount; i++) {
-			
+
 			int startX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 1);
 			int startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
 			while (!isValidPosition(startX, startY, grid)) {
@@ -214,8 +236,8 @@ public class SceneBuilder {
 		}
 		return true;
 	}
-	
-	public void scheduleFire(){
+
+	public void scheduleFire() {
 		int startX = RandomHelper.nextIntFromTo(1, 21);
 		int startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
 		while (!isValidPosition(startX, startY, grid)) {
@@ -223,12 +245,64 @@ public class SceneBuilder {
 			startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
 		}
 		new ScheduleFire(grid, context, startX, startY);
-		
-		//System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());
-		//ISchedule schedule = RunEnvironment.getInstance().getCurrentSchedule();
-		//ScheduleParameters scheduleParams = ScheduleParameters.createOneTime(5.0);
-		//System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());
-		//schedule.schedule(scheduleParams, "createFire");
+
+		// System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());
+		// ISchedule schedule =
+		// RunEnvironment.getInstance().getCurrentSchedule();
+		// ScheduleParameters scheduleParams =
+		// ScheduleParameters.createOneTime(5.0);
+		// System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());
+		// schedule.schedule(scheduleParams, "createFire");
+	}
+
+	private void setFire(Fire fire) {
+		int i = fire.getLocation().getX();
+		int j = fire.getLocation().getY();
+
+		if (validPosition(i, j + 1)) {
+			new Fire(grid, context, i, j + 1);
+		}
+		if (validPosition(i + 1, j + 1)) {
+			new Fire(grid, context, i + 1, j + 1);
+		}
+		if (validPosition(i + 1, j)) {
+			new Fire(grid, context, i + 1, j);
+		}
+		if (validPosition(i, j - 1)) {
+			new Fire(grid, context, i, j - 1);
+		}
+
+		if (validPosition(i + 1, j - 1)) {
+			new Fire(grid, context, i + 1, j - 1);
+		}
+
+		if (validPosition(i - 1, j - 1)) {
+			new Fire(grid, context, i - 1, j - 1);
+		}
+
+		if (validPosition(i - 1, j + 1)) {
+			new Fire(grid, context, i - 1, j + 1);
+		}
+
+		if (validPosition(i - 1, j)) {
+			new Fire(grid, context, i - 1, j);
+		}
+
+	}
+
+	private boolean validPosition(int i, int j) {
+		if (i < 0 || j < 0)
+			return false;
+		if (i >= grid.getDimensions().getWidth())
+			return false;
+		if (j >= grid.getDimensions().getHeight())
+			return false;
+		for (Object obj : grid.getObjectsAt(i, j)) {
+			if (obj instanceof Wall || obj instanceof Fire) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 }

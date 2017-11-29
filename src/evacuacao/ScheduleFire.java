@@ -12,7 +12,7 @@ public class ScheduleFire {
 	private int startY;
 	private static final int tickValue = 5;
 	
-	public ScheduleFire(Grid<Object> grid, Context<Object> context,int startX,int startY) {
+	public ScheduleFire(Grid<Object> grid, Context<Object> context,int startX, int startY) {
 		this.grid = grid;
 		this.context = context;
 		this.startX=startX;

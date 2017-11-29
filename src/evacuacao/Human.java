@@ -3,11 +3,16 @@ package evacuacao;
 import java.util.ArrayList;
 import java.util.List;
 
+import evacuacao.onto.GoToPoint;
 import evacuacao.onto.HelpReply;
 import evacuacao.onto.HelpRequest;
 import evacuacao.onto.ServiceOntology;
 import graph.Graph;
 import repast.simphony.context.Context;
+import repast.simphony.engine.environment.RunEnvironment;
+import repast.simphony.engine.schedule.ISchedule;
+import repast.simphony.engine.schedule.ScheduleParameters;
+import repast.simphony.parameter.Parameters;
 import repast.simphony.query.space.grid.GridCell;
 import repast.simphony.query.space.grid.GridCellNgh;
 import repast.simphony.random.RandomHelper;
@@ -24,6 +29,7 @@ import jade.content.onto.OntologyException;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
+import jade.lang.acl.UnreadableException;
 
 enum State {
 	inRoom, wandering, knowExit
@@ -47,13 +53,20 @@ public class Human extends Agent {
 	private ArrayList<Zones> explored = new ArrayList<Zones>();
 	private Zones nextZone = Zones.nowhere;
 	private Zones fromZone = Zones.nowhere;
+
 	private int visionRadius;
+
 	private int exitX;
 	private int exitY;
+
+	private int securityX;
+	private int securityY;
 
 	private int exitAlive;
 	private int alive;
 
+	private int knowSecurity = 0;
+	private int knowExit = 0;
 	private int fireAlert = 0;
 
 	boolean handlingHelpRequest = false;
@@ -63,6 +76,15 @@ public class Human extends Agent {
 	protected Ontology serviceOntology;
 	public static final String HELP_MESSAGE = "Can you help me find exit door?";
 	public static final String FIRE_MESSAGE = "FIRE FIRE Run to exit!?!??!";
+	public static final String SECURITY_MESSAGE = "TELL ME WHERE IS THE EXIT DOOR...";
+
+	public int getKnowExit() {
+		return knowExit;
+	}
+
+	public void setKnowExit(int knowExit) {
+		this.knowExit = knowExit;
+	}
 
 	public int getFireAlert() {
 		return fireAlert;
@@ -133,6 +155,53 @@ public class Human extends Agent {
 		}
 
 		if (doors.size() > 0) {
+			return true;
+		}
+		return false;
+	}
+
+	private boolean checkSecurityAtLocation(int x, int y) {
+		// Nota securities = títulos mas para o caso pouco interessa. Seguranças
+		// = Security Guards.
+		List<Object> securities = new ArrayList<Object>();
+		for (Object obj : grid.getObjectsAt(x, y)) {
+			if (obj instanceof Security) {
+				securities.add(obj);
+			}
+		}
+
+		if (securities.size() > 0) {
+			// SEND MESSAGE TO ALL Security in that place
+			ACLMessage msgSend = new ACLMessage(ACLMessage.QUERY_REF);
+
+			// Define who's gone receive the message
+			for (int i = 0; i < securities.size(); i++) {
+				Security security = (Security) securities.get(i);
+				msgSend.addReceiver(security.getAID());
+			}
+			// Message Content
+			msgSend.setContent(SECURITY_MESSAGE);
+			msgSend.setLanguage(codec.getName());
+			msgSend.setOntology(serviceOntology.getName());
+
+			// Send message
+			send(msgSend);
+			System.out.println(getLocalName() + " Msg send to Security.");
+			return true;
+		}
+		return false;
+	}
+
+	// TODO checkFireAtLocation
+	private boolean checkFireAtLocation(int x, int y) {
+		List<Object> fires = new ArrayList<Object>();
+		for (Object obj : grid.getObjectsAt(x, y)) {
+			if (obj instanceof Fire) {
+				fires.add(obj);
+			}
+		}
+
+		if (fires.size() > 0) {
 			return true;
 		}
 		return false;
@@ -549,12 +618,57 @@ public class Human extends Agent {
 
 	}
 
-	public void moveToExit(GridPoint pt) {
-		GridPoint nextPoint = getNextPoint(pt, new GridPoint(this.exitX, this.exitY));
+	public void moveToExplore(GridPoint pt) {
+		int i = pt.getX();
+		int j = pt.getY();
+
+		ArrayList<GridPoint> possibleMoves = new ArrayList<GridPoint>();
+
+		if (validPosition(i, j + 1)) {
+			possibleMoves.add(new GridPoint(i, j + 1));
+		}
+		if (validPosition(i + 1, j + 1)) {
+			possibleMoves.add(new GridPoint(i + 1, j + 1));
+		}
+		if (validPosition(i + 1, j)) {
+			possibleMoves.add(new GridPoint(i + 1, j));
+		}
+		if (validPosition(i, j - 1)) {
+			possibleMoves.add(new GridPoint(i, j - 1));
+		}
+
+		if (validPosition(i + 1, j - 1)) {
+			possibleMoves.add(new GridPoint(i + 1, j - 1));
+		}
+
+		if (validPosition(i - 1, j - 1)) {
+			possibleMoves.add(new GridPoint(i - 1, j - 1));
+		}
+
+		if (validPosition(i - 1, j + 1)) {
+			possibleMoves.add(new GridPoint(i - 1, j + 1));
+		}
+
+		if (validPosition(i - 1, j)) {
+			possibleMoves.add(new GridPoint(i - 1, j));
+		}
+
+		if (!possibleMoves.isEmpty()) {
+			int move_index = RandomHelper.nextIntFromTo(0, possibleMoves.size() - 1);
+			grid.moveTo(this, possibleMoves.get(move_index).getX(), possibleMoves.get(move_index).getY());
+			setMoved(true);
+		}
+
+	}
+
+	public void moveToPoint(GridPoint point) {
+		GridPoint nextPoint = getNextPoint(myLocation(), point);
 		if (nextPoint != null) {
 			grid.moveTo(this, (int) nextPoint.getX(), (int) nextPoint.getY());
+		} else {
+			System.out.println(
+					getLocalName() + " at " + myLocation().getX() + "," + myLocation().getY() + " impossible destiny to " + point.getX() + "," + point.getY());
 		}
-		setMoved(true);
 	}
 
 	public void moveTowards(GridPoint pt) {
@@ -580,14 +694,15 @@ public class Human extends Agent {
 
 		if (indexDoor > -1) {
 			// Go To shortest Possible Direction
-
 			GridPoint nextPoint = getNextPoint(pt, doors.get(indexDoor).getLocation());
 			if (nextPoint != null) {
+				System.out.println("moveTowards");
 				grid.moveTo(this, (int) nextPoint.getX(), (int) nextPoint.getY());
+			} else {
+				System.out.println("NOT moveTowards");
 			}
 
 		}
-		setMoved(true);
 	}
 
 	private GridPoint getNextPoint(GridPoint pt, GridPoint location) {
@@ -658,9 +773,98 @@ public class Human extends Agent {
 		Graph g = new Graph(GRAPH);
 		g.dijkstra(START);
 		GridPoint nextPoint = g.getNextPoint(START, END);
+		// System.out.println(" Distance: " + g.getDist(END));
 		// g.printPath(END);
 		// g.printAllPaths();
 		return nextPoint;
+	}
+
+	private int getDistBetween(GridPoint pt, GridPoint location) {
+
+		ArrayList<Graph.Edge> lgraph = new ArrayList<Graph.Edge>();
+
+		for (int i = 0; i < grid.getDimensions().getWidth(); i++)
+			for (int j = 0; j < grid.getDimensions().getHeight(); j++) {
+				if (validPrimitePosition(i, j)) {
+					// Try to add 8 Possible edge
+					// -1- (i-1,j+1)
+					if (validPrimitePosition(i - 1, j + 1)) {
+						Graph.Edge nEdge = new Graph.Edge("x" + Integer.toString(i) + "y" + Integer.toString(j),
+								"x" + Integer.toString(i - 1) + "y" + Integer.toString(j + 1), 1, new GridPoint(i, j), new GridPoint(i - 1, j + 1));
+						lgraph.add(nEdge);
+					}
+					// -2- (i,j+1)
+					if (validPrimitePosition(i, j + 1)) {
+						Graph.Edge nEdge = new Graph.Edge("x" + Integer.toString(i) + "y" + Integer.toString(j),
+								"x" + Integer.toString(i) + "y" + Integer.toString(j + 1), 1, new GridPoint(i, j), new GridPoint(i, j + 1));
+						lgraph.add(nEdge);
+					}
+					// -3- (i+1,j+1)
+					if (validPrimitePosition(i + 1, j + 1)) {
+						Graph.Edge nEdge = new Graph.Edge("x" + Integer.toString(i) + "y" + Integer.toString(j),
+								"x" + Integer.toString(i + 1) + "y" + Integer.toString(j + 1), 1, new GridPoint(i, j), new GridPoint(i + 1, j + 1));
+						lgraph.add(nEdge);
+					}
+					// -4- (i-1,j)
+					if (validPrimitePosition(i - 1, j)) {
+						Graph.Edge nEdge = new Graph.Edge("x" + Integer.toString(i) + "y" + Integer.toString(j),
+								"x" + Integer.toString(i - 1) + "y" + Integer.toString(j), 1, new GridPoint(i, j), new GridPoint(i - 1, j));
+						lgraph.add(nEdge);
+					}
+					// -5- (i+1,j)
+					if (validPrimitePosition(i + 1, j)) {
+						Graph.Edge nEdge = new Graph.Edge("x" + Integer.toString(i) + "y" + Integer.toString(j),
+								"x" + Integer.toString(i + 1) + "y" + Integer.toString(j), 1, new GridPoint(i, j), new GridPoint(i + 1, j));
+						lgraph.add(nEdge);
+					}
+					// -6- (i-1,j-1)
+					if (validPrimitePosition(i - 1, j - 1)) {
+						Graph.Edge nEdge = new Graph.Edge("x" + Integer.toString(i) + "y" + Integer.toString(j),
+								"x" + Integer.toString(i - 1) + "y" + Integer.toString(j - 1), 1, new GridPoint(i, j), new GridPoint(i - 1, j - 1));
+						lgraph.add(nEdge);
+					}
+					// -7- (i,j-1)
+					if (validPrimitePosition(i, j - 1)) {
+						Graph.Edge nEdge = new Graph.Edge("x" + Integer.toString(i) + "y" + Integer.toString(j),
+								"x" + Integer.toString(i) + "y" + Integer.toString(j - 1), 1, new GridPoint(i, j), new GridPoint(i, j - 1));
+						lgraph.add(nEdge);
+					}
+					// -8- (i+1,j-1)
+					if (validPrimitePosition(i + 1, j - 1)) {
+						Graph.Edge nEdge = new Graph.Edge("x" + Integer.toString(i) + "y" + Integer.toString(j),
+								"x" + Integer.toString(i + 1) + "y" + Integer.toString(j - 1), 1, new GridPoint(i, j), new GridPoint(i + 1, j - 1));
+						lgraph.add(nEdge);
+					}
+				}
+			}
+
+		Graph.Edge[] GRAPH = new Graph.Edge[lgraph.size()];
+		GRAPH = lgraph.toArray(GRAPH);
+
+		final String START = "x" + Integer.toString(pt.getX()) + "y" + Integer.toString(pt.getY());
+		final String END = "x" + Integer.toString(location.getX()) + "y" + Integer.toString(location.getY());
+
+		Graph g = new Graph(GRAPH);
+		g.dijkstra(START);
+		// System.out.println(" Distance: " + g.getDist(END));
+		// g.printPath(END);
+		// g.printAllPaths();
+		return g.getDist(END);
+	}
+	
+	private boolean validPrimitePosition(int i, int j) {
+		if (i < 0 || j < 0)
+			return false;
+		if (i >= grid.getDimensions().getWidth())
+			return false;
+		if (j >= grid.getDimensions().getHeight())
+			return false;
+		for (Object obj : grid.getObjectsAt(i, j)) {
+			if (obj instanceof Wall) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private boolean validPosition(int i, int j) {
@@ -671,7 +875,7 @@ public class Human extends Agent {
 		if (j >= grid.getDimensions().getHeight())
 			return false;
 		for (Object obj : grid.getObjectsAt(i, j)) {
-			if (obj instanceof Wall) {
+			if (obj instanceof Wall || obj instanceof Fire) {
 				return false;
 			}
 		}
@@ -757,6 +961,10 @@ public class Human extends Agent {
 		GridCellNgh<Human> neighbourhood = new GridCellNgh<Human>(grid, grid.getLocation(myAgent), Human.class, radius, radius);
 		List<GridCell<Human>> nghPoints = neighbourhood.getNeighborhood(false);
 
+		// NOTA: neighbourhood não tem em consideração as parede
+		// e valores opostos na grid
+		// Ex: Grid 40x40
+		// o ponto (0,0) está a 1 de distância do ponto (0,39)
 		for (GridCell<Human> human : nghPoints) {
 			if (human.size() > 0) {
 				Iterable<Human> iterable = human.items();
@@ -779,11 +987,70 @@ public class Human extends Agent {
 			if (fire.size() > 0) {
 				Iterable<Fire> iterable = fire.items();
 				for (Fire myFire : iterable) {
-					neighboursFire.add(myFire);
+					// TODO findNearFire
+					if (getDistBetween(myLocation(), myFire.getLocation()) <= radius)
+						neighboursFire.add(myFire);
 				}
 			}
 		}
 		return neighboursFire;
+	}
+
+	public ArrayList<Door> findNearDoors(Agent myAgent, int radius) {
+		ArrayList<Door> doorsList = new ArrayList<Door>();
+
+		GridCellNgh<Door> neighbourhood = new GridCellNgh<Door>(grid, grid.getLocation(myAgent), Door.class, radius, radius);
+		List<GridCell<Door>> nghPoints = neighbourhood.getNeighborhood(false);
+
+		for (GridCell<Door> doors : nghPoints) {
+			if (doors.size() > 0) {
+				Iterable<Door> iterable = doors.items();
+				for (Door door : iterable) {
+					// Necessário garantir que está mesmo no raio de visão
+					// Usar neighbourhood é mais util pois evita excesso de
+					// processamento
+					// na verificação de vizinhança
+					if (getDistBetween(grid.getLocation(myAgent), door.getLocation()) <= radius)
+						doorsList.add(door);
+				}
+			}
+		}
+
+		return doorsList;
+	}
+
+	public ArrayList<Security> findNearSecurity(Agent myAgent, int radius) {
+		ArrayList<Security> securityList = new ArrayList<Security>();
+
+		GridCellNgh<Security> neighbourhood = new GridCellNgh<Security>(grid, grid.getLocation(myAgent), Security.class, radius, radius);
+		List<GridCell<Security>> nghPoints = neighbourhood.getNeighborhood(false);
+
+		for (GridCell<Security> securities : nghPoints) {
+			if (securities.size() > 0) {
+				Iterable<Security> iterable = securities.items();
+				for (Security security : iterable) {
+					// Necessário garantir que está mesmo no raio de visão
+					// Usar neighbourhood é mais util pois evita excesso de
+					// processamento na verificação de vizinhança
+					if (getDistBetween(grid.getLocation(myAgent), security.getLocation()) <= radius)
+						securityList.add(security);
+				}
+			}
+		}
+
+		return securityList;
+	}
+
+	public Security findAgent(AID agentAID) {
+		Iterable<Object> agents = grid.getObjects();
+
+		for (Object security : agents) {
+			if (security instanceof Security && ((Security) security).getAID().equals(agentAID)) {
+				return (Security) security;
+			}
+		}
+
+		return null;
 	}
 
 	@Override
@@ -801,6 +1068,8 @@ public class Human extends Agent {
 		// Humans no moveHandler no movimento aleatório quando for visto o fogo
 		// é ativado o fireDetectedBehaviour
 		addBehaviour(new fireDetectedBehaviour(this));
+		addBehaviour(new receiveFireAlertBehaviour(this));
+		addBehaviour(new receiveInformBehaviour(this));
 		// #################################
 		// Movimento Aleatório das Pessoas
 		addBehaviour(new moveHandler(this));
@@ -812,13 +1081,12 @@ public class Human extends Agent {
 
 	@Override
 	protected void takeDown() {
-		System.out.println("Human out alive");
+		System.out.println("Human takeDown");
 		// context.remove(this);
-		// notify results collector
 	}
 
 	/**
-	 * SendHelpBehaviour behaviour
+	 * fireDetectedBehaviour behaviour
 	 */
 	class fireDetectedBehaviour extends SimpleBehaviour {
 		private static final long serialVersionUID = 1L;
@@ -831,19 +1099,25 @@ public class Human extends Agent {
 		}
 
 		public void action() {
-			if (done())
+			if (done() || fireAlert==1)
 				return;
 			// FIRE DETECTIONS
-			ArrayList<Fire> fireList = findNearFire(10);
+			Parameters params = RunEnvironment.getInstance().getParameters();
+			ArrayList<Fire> fireList = findNearFire((Integer) params.getValue("fire_radius"));
+
 			if (fireList.size() > 0) {
-				
-				fireAlert=1;
-				
-				System.out.println(this.getAgent().getLocalName() + " Found Fire at:");
-				for(Fire myFire : fireList)
-					System.out.println(myFire.getLocation().getX() + " " + myFire.getLocation().getY());
-				
-				// find people in the surrounding area
+
+				fireAlert = 1;
+
+				System.out.print(this.getAgent().getLocalName() + " Found Fire");
+				for (Fire myFire : fireList)
+					System.out.print(" at:" + myFire.getLocation().getX() + " " + myFire.getLocation().getY());
+
+				System.out.println("");
+
+				// Find people in the surrounding area
+				// Considera-se que o grito de alerta de incendio se houve
+				// através das paredes
 				ArrayList<AID> humanNear = findNearAgents(myAgent, 2);
 				if (humanNear.isEmpty()) {
 					return;
@@ -866,12 +1140,166 @@ public class Human extends Agent {
 				// System.out.println("Send message : " + getAID());
 
 				alertsend = true;
+
+				// Create repeated Fire alert behaviour
+				// Current Tick
+				double start = RunEnvironment.getInstance().getCurrentSchedule().getTickCount();
+				double startAt = start + 5;
+				// System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());
+				ISchedule schedule = RunEnvironment.getInstance().getCurrentSchedule();
+				ScheduleParameters scheduleParams = ScheduleParameters.createRepeating(startAt, 5.0);
+				schedule.schedule(scheduleParams, this, "repeatAlert");
+				// System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());
+				// schedule.schedule(scheduleParams, "createFire");
+
 			}
+			
+		}
+		public boolean done() {
+			// When alert send remove this Behaviour from agent
+			return alertsend;
+		}
+
+		public void repeatAlert() {
+			if (exitAlive == 0) {
+				System.out.println(getLocalName() + " Repeat Fire Alert.");
+				// find people in the surrounding area
+				ArrayList<AID> humanNear = findNearAgents(myAgent, 2);
+				if (humanNear.isEmpty()) {
+					return;
+				}
+
+				// make help request
+				ACLMessage msg = new ACLMessage(ACLMessage.PROPAGATE);
+
+				// Define who's gone receive the message
+				for (AID human : humanNear)
+					msg.addReceiver(human);
+
+				// Message Content
+				msg.setContent(FIRE_MESSAGE);
+				msg.setLanguage(codec.getName());
+				msg.setOntology(serviceOntology.getName());
+
+				// Send message
+				send(msg);
+				// System.out.println("Send message : " + getAID());
+			}
+
+		}
+
+	}
+
+	/**
+	 * fireDetectedBehaviour behaviour
+	 */
+	class receiveFireAlertBehaviour extends SimpleBehaviour {
+		private static final long serialVersionUID = 1L;
+		MessageTemplate template = MessageTemplate.MatchPerformative(ACLMessage.PROPAGATE);
+
+		// Alert of Fire
+		private boolean alertsend;
+
+		public receiveFireAlertBehaviour(Agent a) {
+			super(a);
+			alertsend = false;
+		}
+
+		public void action() {
+			if (done())
+				return;
+
+			// Evitar que as pessoas que tenham detetado o fogo enviem o alerta
+			// pois já o enviaram em fireDetectedBehaviour
+			if (fireAlert == 1) {
+				alertsend = true;
+				done();
+				return;
+			}
+			// if (alertsend) System.out.println("########## ERROR
+			// #########################");
+			ACLMessage msg = receive(template);
+			if (msg != null) {
+				if (msg.getContent().equals(FIRE_MESSAGE)) {
+					fireAlert = 1;
+					System.out.println(getLocalName() + " receive fire alert: " + msg.getContent());
+					// find people in the surrounding area
+					ArrayList<AID> humanNear = findNearAgents(myAgent, 2);
+					if (humanNear.isEmpty()) {
+						System.out.println(getLocalName() + " Agent " + " No one near at " + myLocation().getX() + "," + myLocation().getY());
+						return;
+					}
+
+					// make help request
+					ACLMessage msgSend = new ACLMessage(ACLMessage.PROPAGATE);
+
+					// Define who's gone receive the message
+					for (AID human : humanNear)
+						msgSend.addReceiver(human);
+
+					// Message Content
+					msgSend.setContent(FIRE_MESSAGE);
+					msgSend.setLanguage(codec.getName());
+					msgSend.setOntology(serviceOntology.getName());
+
+					// Send message
+					send(msgSend);
+					System.out.println(getLocalName() + " Send Fire Alert message heared.");
+
+					alertsend = true;
+				}
+			}
+
 		}
 
 		public boolean done() {
 			// When alert send remove this Behaviour from agent
 			return alertsend;
+		}
+	}
+
+	/**
+	 * receiveInform Behaviour
+	 */
+	class receiveInformBehaviour extends SimpleBehaviour {
+		private static final long serialVersionUID = 1L;
+		private MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.INFORM),
+				MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME));
+
+		// private MessageTemplate template =
+		// MessageTemplate.MatchPerformative(ACLMessage.INFORM);
+		public receiveInformBehaviour(Agent a) {
+			super(a);
+		}
+
+		public void action() {
+			if (done())
+				return;
+
+			ACLMessage msg = receive(template);
+			if (msg != null) {
+				GoToPoint goToPoint;
+				try {
+					goToPoint = (GoToPoint) msg.getContentObject();
+					// Se for necessário saber a localização do segurança
+					Security security = findAgent(msg.getSender());
+					System.out.println(getLocalName() + " receive Information go to EXIT at: " + goToPoint.getX() + "," + goToPoint.getY() + " from  "
+							+ msg.getSender().getLocalName() + " " + security.getLocation().getX() + "," + security.getLocation().getY());
+
+					knowExit = 1;
+					exitX = goToPoint.getX();
+					exitY = goToPoint.getY();
+				} catch (UnreadableException e) {
+					e.printStackTrace();
+				}
+
+			}
+
+		}
+
+		public boolean done() {
+			// When alert send remove this Behaviour from agent
+			return false;
 		}
 	}
 
@@ -973,7 +1401,6 @@ public class Human extends Agent {
 
 		@Override
 		public boolean done() {
-			// TODO Auto-generated method stub
 			return false;
 		}
 	}
@@ -999,47 +1426,119 @@ public class Human extends Agent {
 			List<GridCell<Human>> gridCells = nghCreator.getNeighborhood(true);
 			SimUtilities.shuffle(gridCells, RandomHelper.getUniform());
 
-			if (myLocation().getX() > grid.getDimensions().getWidth() - 21 && state != State.knowExit)
-				state = State.wandering;
-			// lookup in visionRadius to find exit or security guard
-			vision(myLocation());
-
-			switch (state) {
-			case inRoom:
-				moveTowards(myLocation());
-				break;
-			case wandering:
-				moveExplore(myLocation());
-
-				break;
-			case knowExit:
-				moveToExit(myLocation());
-				break;
+			if (knowExit == 1) {
+				moveToPoint(new GridPoint(exitX, exitY));
+				return;
+			}
+			if (knowSecurity == 1) {
+				moveToPoint((new GridPoint(securityX, securityY)));
+				return;
 			}
 
+			GridPoint exitRomsPoint = new GridPoint(20, 12);
+			if (myLocation().getX() < 20 && fireAlert == 1)
+				moveToPoint(exitRomsPoint);
+			else {
+				moveToExplore(myLocation());
+			}
+
+			// Somente toma comportamento diferente após a deteção de Incêndio
+			if (fireAlert == 1) {
+				// Se for visivel a saída no raio de visão
+				// Registar o local de saida e ir para a saída
+				// Responder aos pedidos de ajuda
+				// Adicionar um parametro que permita testar a simulação sem
+				// esta opção
+				// TODO
+
+				ArrayList<Door> listNearDoors = findNearDoors(getAgent(), visionRadius);
+
+				if (listNearDoors.size() > 0) {
+					// Se avistar mais do que uma escolher a que estiver mais
+					// perto
+					knowExit = 1;
+					int distToDoor = 99999;
+					System.out
+							.print(getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " visionRadius " + visionRadius + " Found Door :");
+					for (int i = 0; i < listNearDoors.size(); i++) {
+						System.out.print(" at position:" + listNearDoors.get(i).getLocation().getX() + "," + listNearDoors.get(i).getLocation().getY());
+						int distDoor = getDistBetween(myLocation(), listNearDoors.get(i).getLocation());
+						if (distDoor < distToDoor) {
+							distToDoor = distDoor;
+							exitX = listNearDoors.get(i).getLocation().getX();
+							exitY = listNearDoors.get(i).getLocation().getY();
+						}
+					}
+					System.out.println("");
+
+					// moveTowards(listNearDoors.get(i).getLocation());
+					// moveToExit(listNearDoors.get(i).getLocation());
+					// getNextPoint(myLocation(),listNearDoors.get(i).getLocation());
+				}
+
+				// Se for visivel um segurança
+				// Perguntar onde é a saída
+				// Registar a saída
+				// Responder aos pedidos de ajuda
+				// Adicionar um parametro que permita testar a simulação sem
+				// esta opção
+				// TODO
+
+				ArrayList<Security> listNearSecurity = findNearSecurity(getAgent(), visionRadius);
+
+				if (listNearSecurity.size() > 0) {
+					knowSecurity = 1;
+					// Se avistar mais do que um segurança escolher o que
+					// estiver mais perto
+					int distToSecurity = 99999;
+					System.out.print(
+							getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " visionRadius " + visionRadius + " Found Security :");
+					for (int i = 0; i < listNearSecurity.size(); i++) {
+						System.out.print(" at position:" + listNearSecurity.get(i).getLocation().getX() + "," + listNearSecurity.get(i).getLocation().getY());
+						int distSecurity = getDistBetween(myLocation(), listNearSecurity.get(i).getLocation());
+						if (distSecurity < distToSecurity) {
+							distToSecurity = distSecurity;
+							securityX = listNearSecurity.get(i).getLocation().getX();
+							securityY = listNearSecurity.get(i).getLocation().getY();
+						}
+					}
+					System.out.println("");
+				}
+			} // END if (fireAlert == 1)
+
+			/*
+			 * if (myLocation().getX() > grid.getDimensions().getWidth() - 21 &&
+			 * state != State.knowExit) state = State.wandering; // lookup in
+			 * visionRadius to find exit or security guard vision(myLocation());
+			 * 
+			 * switch (state) { case inRoom: // moveTowards(myLocation());
+			 * moveToExplore(myLocation()); break; case wandering:
+			 * moveExplore(myLocation());
+			 * 
+			 * break; case knowExit: moveToExit(myLocation()); break; }
+			 */
 		}
 
 		@Override
 		public boolean done() {
-			if (checkDoorAtLocation(myLocation().getX(), myLocation().getY())) {
-				System.out.println(getLocalName() + " Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
-				exitAlive = 1;
-				takeDown();
-				return true;
-			}
-			return false;
-		}
-
-		private void sendFireAlert() {
-			MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.PROPAGATE),
-					MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME));
-			ACLMessage msg = receive(template);
-			if (msg != null) {
-				if (msg.getContent().equals(FIRE_MESSAGE)) {
-					fireAlert = 1;
-					System.out.println(msg.getContent());
+			if (fireAlert == 1) {
+				if (checkDoorAtLocation(myLocation().getX(), myLocation().getY())) {
+					System.out.println(getLocalName() + " Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
+					exitAlive = 1;
+					takeDown();
+					return true;
+				}
+				if (checkSecurityAtLocation(myLocation().getX(), myLocation().getY())) {
+					System.out.println(getLocalName() + " msg send security");
+				}
+				if (checkFireAtLocation(myLocation().getX(), myLocation().getY())) {
+					alive = 0;
+					System.out.println(getLocalName() + " Die........");
+					takeDown();
+					return true;
 				}
 			}
+			return false;
 		}
 
 	}

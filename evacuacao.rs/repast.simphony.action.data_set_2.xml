@@ -13,7 +13,7 @@
     <frequency>REPEAT</frequency>
     <hashCode>27495925</hashCode>
   </scheduleParams>
-  <atEnd>true</atEnd>
+  <atEnd>false</atEnd>
   <methodDataSources class="linked-hash-map">
     <entry>
       <string>Humans Deads</string>

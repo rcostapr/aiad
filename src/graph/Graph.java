@@ -74,6 +74,7 @@ public class Graph {
 		}
 
 		public GridPoint getNextPoint(String startName) {
+			if(this.previous == null) return null;
 			if (this.previous.getName().equals(startName)) {
 				return this.getGridPoint();
 			} else if (this.previous == null) {
@@ -82,6 +83,12 @@ public class Graph {
 			} else {
 				return this.previous.getNextPoint(startName);
 			}
+		}
+		public int getDist(String endName) {
+			if(this.getName().equals(endName))
+			return this.dist;
+			else
+				return -1;
 		}
 	}
 
@@ -109,6 +116,7 @@ public class Graph {
 	public void dijkstra(String startName) {
 		if (!graph.containsKey(startName)) {
 			System.err.printf("Graph doesn't contain start vertex \"%s\"\n", startName);
+			sendNull();
 			return;
 		}
 		final Vertex source = graph.get(startName);
@@ -122,6 +130,11 @@ public class Graph {
 		}
 
 		dijkstra(q);
+	}
+
+	private GridPoint sendNull() {
+		GridPoint point = null;
+		return point;		
 	}
 
 	/** Implementation of dijkstra's algorithm using a binary heap. */
@@ -181,5 +194,15 @@ public class Graph {
 		GridPoint nextPoint = graph.get(endName).getNextPoint(startName);
 
 		return nextPoint;
+	}
+	public int getDist(String endName) {
+		if (!graph.containsKey(endName)) {
+			System.err.printf("Graph doesn't contain end vertex \"%s\"\n", endName);
+			return -1;
+		}
+
+		int dist = graph.get(endName).getDist(endName);
+
+		return dist;
 	}
 }

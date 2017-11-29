@@ -1,5 +1,5 @@
 <repast.simphony.data2.engine.DataSetDescriptor>
-  <name>Humans Exited Alive</name>
+  <name>Humans Know Exit</name>
   <type>AGGREGATE</type>
   <inclTick>true</inclTick>
   <inclBatchRun>false</inclBatchRun>
@@ -11,16 +11,16 @@
     <pType>LAST</pType>
     <duration>-1.0</duration>
     <frequency>REPEAT</frequency>
-    <hashCode>1790088397</hashCode>
+    <hashCode>-713325303</hashCode>
   </scheduleParams>
   <atEnd>false</atEnd>
   <methodDataSources class="linked-hash-map">
     <entry>
-      <string>Humans Exited Alive</string>
+      <string>Know Exit</string>
       <repast.simphony.data2.engine.MethodDataSourceDefinition>
-        <id>Humans Exited Alive</id>
+        <id>Know Exit</id>
         <className>evacuacao.Human</className>
-        <methodName>getExitAlive</methodName>
+        <methodName>getKnowExit</methodName>
         <aggType>SUM</aggType>
       </repast.simphony.data2.engine.MethodDataSourceDefinition>
     </entry>

@@ -13,7 +13,7 @@
     <frequency>REPEAT</frequency>
     <hashCode>-1027762139</hashCode>
   </scheduleParams>
-  <atEnd>true</atEnd>
+  <atEnd>false</atEnd>
   <methodDataSources class="linked-hash-map">
     <entry>
       <string>Human Fire Detect</string>

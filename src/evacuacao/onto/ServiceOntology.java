@@ -24,8 +24,7 @@ public class ServiceOntology extends BeanOntology {
 		
 		try {
 			// add all Concept, Predicate and AgentAction
-			add(HelpRequest.class);
-			add(HelpReply.class);
+			add(GoToPoint.class);
 			
 		} catch(BeanOntologyException boe) {
 			boe.printStackTrace();
