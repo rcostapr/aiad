@@ -716,7 +716,7 @@ public class Human extends Agent {
 			if (done() || fireAlert==1)
 				return;
 			// FIRE DETECTIONS
-			System.out.println("Execute fireDetectedBehaviour");
+			//System.out.println("Execute fireDetectedBehaviour");
 			Parameters params = RunEnvironment.getInstance().getParameters();
 			ArrayList<Fire> fireList = findNearFire((Integer) params.getValue("fire_radius"));
 
@@ -772,7 +772,7 @@ public class Human extends Agent {
 		}
 
 		public void repeatAlert() {
-			System.out.println("Execute repeatAlert");
+			//System.out.println("Execute repeatAlert");
 			if (exitAlive == 0) {
 				System.out.println(getLocalName() + " Repeat Fire Alert.");
 				// find people in the surrounding area
@@ -826,7 +826,7 @@ public class Human extends Agent {
 		public void action() {
 			if (done())
 				return;
-			System.out.println("Execute receiveFireAlertBehaviour");
+			//System.out.println("Execute receiveFireAlertBehaviour");
 			// Evitar que as pessoas que tenham detetado o fogo enviem o alerta
 			// pois já o enviaram em fireDetectedBehaviour
 			if (fireAlert == 1) {
@@ -893,7 +893,7 @@ public class Human extends Agent {
 		public void action() {
 			if (done())
 				return;
-			System.out.println("Execute receiveInformBehaviour");
+			//System.out.println("Execute receiveInformBehaviour");
 			ACLMessage msg = receive(template);
 			if (msg != null) {
 				GoToPoint goToPoint;
@@ -946,7 +946,7 @@ public class Human extends Agent {
 		public void action() {
 			if (done())
 				return;
-			System.out.println("Execute HelpBehaviour");
+			//System.out.println("Execute HelpBehaviour");
 			ACLMessage myCfp = null;
 
 			if (handlingHelpRequest) {
@@ -1039,7 +1039,7 @@ public class Human extends Agent {
 				System.out.println("Human " + getLocalName() + " done");
 				return;
 			}
-			System.out.println("Execute moveHandler");
+			//System.out.println("Execute moveHandler");
 			GridCellNgh<Human> nghCreator = new GridCellNgh<Human>(grid, myLocation(), Human.class, 1, 1);
 			List<GridCell<Human>> gridCells = nghCreator.getNeighborhood(true);
 			SimUtilities.shuffle(gridCells, RandomHelper.getUniform());

@@ -115,7 +115,7 @@ public class Graph {
 	/** Runs dijkstra using a specified source vertex */
 	public void dijkstra(String startName) {
 		if (!graph.containsKey(startName)) {
-			System.err.printf("Graph doesn't contain start vertex \"%s\"\n", startName);
+			//System.err.printf("Graph doesn't contain start vertex \"%s\"\n", startName);
 			sendNull();
 			return;
 		}

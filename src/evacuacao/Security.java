@@ -177,7 +177,7 @@ public class Security extends Agent {
 		if (j >= grid.getDimensions().getHeight())
 			return false;
 		for (Object obj : grid.getObjectsAt(i, j)) {
-			if (obj instanceof Wall) {
+			if (obj instanceof Wall || obj instanceof Fire) {
 				return false;
 			}
 		}
