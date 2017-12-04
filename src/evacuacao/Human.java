@@ -1,11 +1,10 @@
 package evacuacao;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import evacuacao.onto.GoToPoint;
-import evacuacao.onto.HelpReply;
-import evacuacao.onto.HelpRequest;
 import evacuacao.onto.ServiceOntology;
 import graph.Graph;
 import repast.simphony.context.Context;
@@ -18,42 +17,26 @@ import repast.simphony.query.space.grid.GridCellNgh;
 import repast.simphony.random.RandomHelper;
 import repast.simphony.space.grid.Grid;
 import repast.simphony.space.grid.GridPoint;
-import repast.simphony.util.SimUtilities;
 import sajas.core.Agent;
 import sajas.core.behaviours.CyclicBehaviour;
 import sajas.core.behaviours.SimpleBehaviour;
 import jade.content.lang.Codec;
-import jade.content.lang.Codec.CodecException;
 import jade.content.lang.sl.SLCodec;
 import jade.content.onto.Ontology;
-import jade.content.onto.OntologyException;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
 
-enum State {
-	inRoom, wandering, knowExit
-}
-
 enum Condition {
 	healthy, injured, saved
 }
 
-enum Zones {
-	topWall, bottomWall, RightWall, topRight, topLeft, bottomLeft, bottomRight, nowhere
-}
-
 public class Human extends Agent {
 	private Grid<Object> grid;
-	private boolean moved;
-	private Context<Object> context;
-	private State state;
+	private Context<Object> context;;
 	private Condition condition;
-	private float altruism;
-	private ArrayList<Zones> explored = new ArrayList<Zones>();
-	private Zones nextZone = Zones.nowhere;
-	private Zones fromZone = Zones.nowhere;
+	private float altruist;
 
 	private int visionRadius;
 
@@ -69,15 +52,51 @@ public class Human extends Agent {
 	private int knowSecurity = 0;
 	private int knowExit = 0;
 	private int fireAlert = 0;
+	private int helpHumansCount = 0;
+	private int wasHelped = 0;
+	private int saveHumansCount = 0;
 
 	boolean handlingHelpRequest = false;
-	private Human helpedHuman;
+	private Human humanToCarry = null;
+	private boolean gothumanToCarry = false;
+
+	private Human humanToCarryMe = null;
+	private boolean gothumanToCarryMe = false;
 
 	protected Codec codec;
 	protected Ontology serviceOntology;
-	public static final String HELP_MESSAGE = "Can you help me find exit door?";
+	public static final String HELP_MESSAGE = "Can you help me find EXIT door?";
 	public static final String FIRE_MESSAGE = "FIRE FIRE Run to exit!?!??!";
 	public static final String SECURITY_MESSAGE = "TELL ME WHERE IS THE EXIT DOOR...";
+	public static final String INJURED_MESSAGE = "Can you carry me out?...";
+
+	public static final String UNKNOWN = "Unknown Message";
+	public static final String HANDLE_HELP_REQUEST = "Already Handle a help request. Sorry?!?!?";
+	public static final String INJURY_MESSAGE = null;
+
+	public int getSaveHumansCount() {
+		return saveHumansCount;
+	}
+
+	public void setSaveHumansCount(int saveHumansCount) {
+		this.saveHumansCount = saveHumansCount;
+	}
+
+	public int getWasHelped() {
+		return wasHelped;
+	}
+
+	public void setWasHelped(int wasHelped) {
+		this.wasHelped = wasHelped;
+	}
+
+	public int getHelpHumansCount() {
+		return helpHumansCount;
+	}
+
+	public void setHelpHumansCount(int helpHumansCount) {
+		this.helpHumansCount = helpHumansCount;
+	}
 
 	public int getKnowExit() {
 		return knowExit;
@@ -110,43 +129,22 @@ public class Human extends Agent {
 			return 0;
 	}
 
-	public Human(Grid<Object> grid, Context<Object> context, State state, Condition condition, float altruism, int visionRadius) {
+	public int getExitAlive() {
+		return exitAlive;
+	}
+
+	public void setExitAlive(int exitAlive) {
+		this.exitAlive = exitAlive;
+	}
+
+	public Human(Grid<Object> grid, Context<Object> context, Condition condition, float altruist, int visionRadius) {
 		this.grid = grid;
 		this.context = context;
-		this.state = state;
 		this.condition = condition;
-		this.altruism = altruism;
+		this.altruist = altruist;
 		this.visionRadius = visionRadius;
 		this.exitAlive = 0;
 		this.alive = 1;
-		
-		// TODO Behaviour
-	}
-
-	public Zones currentZone(int x, int y) {
-		if (x >= 20 && x <= 22) {
-			if (y >= 1 && y <= 3)
-				return Zones.bottomLeft;
-			if (y <= this.grid.getDimensions().getHeight() - 2 && y >= this.grid.getDimensions().getHeight() - 4)
-				return Zones.topLeft;
-		}
-		if (x >= 25 && x <= 33) {
-			if (y >= 1 && y <= 3)
-				return Zones.bottomWall;
-			if (y >= this.grid.getDimensions().getHeight() - 4 && y <= this.grid.getDimensions().getHeight() - 2)
-				return Zones.topWall;
-		}
-		if (x >= this.grid.getDimensions().getWidth() - 4 && x <= this.grid.getDimensions().getWidth() - 2) {
-			if (y >= 1 && y <= 3)
-				return Zones.bottomRight;
-			if (y >= this.grid.getDimensions().getHeight() - 4 && y <= this.grid.getDimensions().getHeight() - 2)
-				return Zones.topRight;
-			if (y >= 6 && y <= 18) {
-				return Zones.RightWall;
-			}
-
-		}
-		return Zones.nowhere;
 	}
 
 	private boolean checkDoorAtLocation(int x, int y) {
@@ -164,8 +162,13 @@ public class Human extends Agent {
 	}
 
 	private boolean checkSecurityAtLocation(int x, int y) {
-		// Nota securities = títulos mas para o caso pouco interessa. Seguranças
-		// = Security Guards.
+		// Nota: securities = títulos mas para o caso pouco interessa.
+		// Seguranças = Security Guards.
+
+		// It only makes sense to look for security if there is a fire
+		if (fireAlert == 0)
+			return false;
+
 		List<Object> securities = new ArrayList<Object>();
 		for (Object obj : grid.getObjectsAt(x, y)) {
 			if (obj instanceof Security) {
@@ -181,6 +184,7 @@ public class Human extends Agent {
 			for (int i = 0; i < securities.size(); i++) {
 				Security security = (Security) securities.get(i);
 				msgSend.addReceiver(security.getAID());
+				System.out.println(getLocalName() + " request help send to " + security.getLocalName());
 			}
 			// Message Content
 			msgSend.setContent(SECURITY_MESSAGE);
@@ -189,13 +193,12 @@ public class Human extends Agent {
 
 			// Send message
 			send(msgSend);
-			//System.out.println(getLocalName() + " Msg send to Security.");
+
 			return true;
 		}
 		return false;
 	}
 
-	// TODO checkFireAtLocation
 	private boolean checkFireAtLocation(int x, int y) {
 		List<Object> fires = new ArrayList<Object>();
 		for (Object obj : grid.getObjectsAt(x, y)) {
@@ -210,7 +213,7 @@ public class Human extends Agent {
 		return false;
 	}
 
-	private GridPoint myLocation() {
+	GridPoint myLocation() {
 		return grid.getLocation(this);
 	}
 
@@ -263,7 +266,7 @@ public class Human extends Agent {
 		} else {
 			System.out.println(
 					getLocalName() + " at " + myLocation().getX() + "," + myLocation().getY() + " impossible destiny to " + point.getX() + "," + point.getY());
-					moveToExplore(myLocation());
+			moveToExplore(myLocation());
 		}
 	}
 
@@ -369,7 +372,7 @@ public class Human extends Agent {
 		Graph g = new Graph(GRAPH);
 		g.dijkstra(START);
 		GridPoint nextPoint = g.getNextPoint(START, END);
-		// System.out.println(" Distance: " + g.getDist(END));
+		System.out.println(" Distance: " + g.getDist(END));
 		// g.printPath(END);
 		// g.printAllPaths();
 		return nextPoint;
@@ -444,7 +447,7 @@ public class Human extends Agent {
 		g.dijkstra(START);
 		return g.getDist(END);
 	}
-	
+
 	private boolean validPrimitePosition(int i, int j) {
 		if (i < 0 || j < 0)
 			return false;
@@ -475,58 +478,6 @@ public class Human extends Agent {
 		return true;
 	}
 
-	public boolean moveLeft(int i, int j) {
-		if (validPosition(i - 1, j)) {
-			grid.moveTo(this, i - 1, j);
-			setMoved(true);
-			return true;
-		}
-		return false;
-	}
-
-	public boolean moveUp(int i, int j) {
-		if (validPosition(i, j + 1)) {
-			grid.moveTo(this, i, j + 1);
-			setMoved(true);
-			return true;
-		}
-		return false;
-	}
-
-	public boolean moveDown(int i, int j) {
-		if (validPosition(i, j - 1)) {
-			grid.moveTo(this, i, j - 1);
-			setMoved(true);
-			return true;
-		}
-		return false;
-	}
-
-	public boolean moveRight(int i, int j) {
-		if (validPosition(i + 1, j)) {
-			grid.moveTo(this, i + 1, j);
-			setMoved(true);
-			return true;
-		}
-		return false;
-	}
-
-	public boolean isMoved() {
-		return moved;
-	}
-
-	public void setMoved(boolean moved) {
-		this.moved = moved;
-	}
-
-	public int getExitAlive() {
-		return exitAlive;
-	}
-
-	public void setExitAlive(int exitAlive) {
-		this.exitAlive = exitAlive;
-	}
-
 	public void findNearHumans(int radius) {
 		ArrayList<AID> neighboursList = new ArrayList<AID>();
 		GridCellNgh<Human> nghCreator = new GridCellNgh<Human>(grid, myLocation(), Human.class, radius, radius);
@@ -554,14 +505,23 @@ public class Human extends Agent {
 		GridCellNgh<Human> neighbourhood = new GridCellNgh<Human>(grid, grid.getLocation(myAgent), Human.class, radius, radius);
 		List<GridCell<Human>> nghPoints = neighbourhood.getNeighborhood(false);
 
-		// NOTA: neighbourhood não tem em consideração as parede
-		// e valores opostos na grid
-		// Ex: Grid 40x40
-		// o ponto (0,0) está a 1 de distância do ponto (0,39)
+		// NOTA: neighbourhood não tem em consideração as parede e valores opostos na grid
+		// Ex: Grid 40x40 o ponto (0,0) está a 1 de distância do ponto (0,39)
 		for (GridCell<Human> human : nghPoints) {
 			if (human.size() > 0) {
 				Iterable<Human> iterable = human.items();
 				for (Human agent : iterable) {
+					neighboursList.add(agent.getAID());
+				}
+			}
+		}
+
+		GridCellNgh<Security> neighbourSec = new GridCellNgh<Security>(grid, grid.getLocation(myAgent), Security.class, radius, radius);
+		List<GridCell<Security>> nghPointsSec = neighbourSec.getNeighborhood(false);
+		for (GridCell<Security> secure : nghPointsSec) {
+			if (secure.size() > 0) {
+				Iterable<Security> iterable = secure.items();
+				for (Security agent : iterable) {
 					neighboursList.add(agent.getAID());
 				}
 			}
@@ -580,7 +540,6 @@ public class Human extends Agent {
 			if (fire.size() > 0) {
 				Iterable<Fire> iterable = fire.items();
 				for (Fire myFire : iterable) {
-					// TODO findNearFire
 					if (getDistBetween(myLocation(), myFire.getLocation()) <= radius)
 						neighboursFire.add(myFire);
 				}
@@ -634,7 +593,29 @@ public class Human extends Agent {
 		return securityList;
 	}
 
-	public Security findAgent(AID agentAID) {
+	public ArrayList<Human> findNearHuman(Agent myAgent, int radius) {
+		ArrayList<Human> humanList = new ArrayList<Human>();
+
+		GridCellNgh<Human> neighbourhood = new GridCellNgh<Human>(grid, grid.getLocation(myAgent), Human.class, radius, radius);
+		List<GridCell<Human>> nghPoints = neighbourhood.getNeighborhood(false);
+
+		for (GridCell<Human> humans : nghPoints) {
+			if (humans.size() > 0) {
+				Iterable<Human> iterable = humans.items();
+				for (Human human : iterable) {
+					// Necessário garantir que está mesmo no raio de visão
+					// Usar neighbourhood é mais util pois evita excesso de
+					// processamento na verificação de vizinhança
+					if (getDistBetween(grid.getLocation(myAgent), human.myLocation()) <= radius)
+						humanList.add(human);
+				}
+			}
+		}
+
+		return humanList;
+	}
+
+	public Object findAgent(AID agentAID) {
 		Iterable<Object> agents = grid.getObjects();
 
 		for (Object security : agents) {
@@ -643,12 +624,20 @@ public class Human extends Agent {
 			}
 		}
 
+		for (Object human : agents) {
+			if (human instanceof Human && ((Human) human).getAID().equals(agentAID)) {
+				return (Human) human;
+			}
+		}
+
 		return null;
 	}
 
 	@Override
 	public void setup() {
-		System.out.println("#########   Animation START  #########");
+		// TODO get Scene Builder Parameters
+		SceneBuilder scene = (SceneBuilder) context.getObjects(SceneBuilder.class).get(0);
+
 		// register language and ontology
 		codec = new SLCodec();
 		serviceOntology = ServiceOntology.getInstance();
@@ -656,20 +645,14 @@ public class Human extends Agent {
 		getContentManager().registerOntology(serviceOntology);
 
 		// add behaviours
-		// TODO
-		// Necessário criar o agent fogo
-		// Fazer entrar o fogo aleatóriamente na grid
-		// Humans no moveHandler no movimento aleatório quando for visto o fogo
-		// é ativado o fireDetectedBehaviour
+
+		// fire Detected
 		addBehaviour(new fireDetectedBehaviour(this));
 		addBehaviour(new receiveFireAlertBehaviour(this));
-		addBehaviour(new receiveInformBehaviour(this));
+
 		// #################################
 		// Movement Behaviour
 		addBehaviour(new moveHandler(this));
-		// Help Behaviour - Quando recebe um pedido de ajuda
-		addBehaviour(new HelpBehaviour(this));
-		// Nota: faz o pedido de ajuada quando o fogo é detetado
 
 	}
 
@@ -713,14 +696,25 @@ public class Human extends Agent {
 		}
 
 		public void action() {
-			if (done() || fireAlert==1)
+			if (done())
 				return;
+			if (fireAlert == 1) {
+				removeBehaviour(this);
+				System.out.println("Remove fireDetectedBehaviour");
+				return;
+			}
 			// FIRE DETECTIONS
-			//System.out.println("Execute fireDetectedBehaviour");
+			System.out.println("Execute fireDetectedBehaviour");
 			Parameters params = RunEnvironment.getInstance().getParameters();
 			ArrayList<Fire> fireList = findNearFire((Integer) params.getValue("fire_radius"));
 
 			if (fireList.size() > 0) {
+
+				// injured
+				for (int i = 0; i < fireList.size(); i++) {
+					if (getDistBetween(myLocation(), fireList.get(i).getLocation()) == 1)
+						condition = Condition.injured;
+				}
 
 				fireAlert = 1;
 
@@ -731,52 +725,53 @@ public class Human extends Agent {
 				System.out.println("");
 
 				// Find people in the surrounding area
-				// Considera-se que o grito de alerta de incendio se houve
-				// através das paredes
-				ArrayList<AID> humanNear = findNearAgents(myAgent, 2);
-				if (humanNear.isEmpty()) {
-					return;
-				}
+				// Considera-se que o grito de alerta de incendio se houve através das paredes
+				ArrayList<AID> humanNear = findNearAgents(myAgent, visionRadius);
 
 				// make help request
 				ACLMessage msg = new ACLMessage(ACLMessage.PROPAGATE);
 
 				// Define who's gone receive the message
-				for (AID human : humanNear)
-					msg.addReceiver(human);
+				if (!humanNear.isEmpty()) {
+					for (AID human : humanNear)
+						msg.addReceiver(human);
 
-				// Message Content
-				msg.setContent(FIRE_MESSAGE);
-				msg.setLanguage(codec.getName());
-				msg.setOntology(serviceOntology.getName());
+					// Message Content
+					msg.setContent(FIRE_MESSAGE);
+					msg.setLanguage(codec.getName());
+					msg.setOntology(serviceOntology.getName());
 
-				// Send message
-				send(msg);
-				// System.out.println("Send message : " + getAID());
+					// Send message
+					send(msg);
+					System.out.println(getLocalName() + " PROPAGATE fire alert message");
+				}
 
 				alertsend = true;
+
+				// Create Help Behaviour
+				addBehaviour(new HelpBehaviour(myAgent));
+				System.out.println(getLocalName() + " Create Help Behaviour");
+				// Nota: Somente começa a fazer pedidos de ajuda quando o fogo é
+				// detetado
 
 				// Create repeated Fire alert behaviour
 				// Current Tick
 				double start = RunEnvironment.getInstance().getCurrentSchedule().getTickCount();
-				double startAt = start + 5;
-				// System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());
+				double startAt = start + 6;
+				System.out.println(getLocalName() + " Create repeated Fire alert behaviour");
 				ISchedule schedule = RunEnvironment.getInstance().getCurrentSchedule();
-				ScheduleParameters scheduleParams = ScheduleParameters.createRepeating(startAt, 5.0);
+				ScheduleParameters scheduleParams = ScheduleParameters.createRepeating(startAt, 6.0);
 				schedule.schedule(scheduleParams, this, "repeatAlert");
-				// System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());
-				// schedule.schedule(scheduleParams, "createFire");
 
 			}
-			
+
 		}
 
 		public void repeatAlert() {
-			//System.out.println("Execute repeatAlert");
+			System.out.println("Execute repeatAlert");
 			if (exitAlive == 0) {
-				System.out.println(getLocalName() + " Repeat Fire Alert.");
 				// find people in the surrounding area
-				ArrayList<AID> humanNear = findNearAgents(myAgent, 2);
+				ArrayList<AID> humanNear = findNearAgents(myAgent, visionRadius);
 				if (humanNear.isEmpty()) {
 					return;
 				}
@@ -795,21 +790,20 @@ public class Human extends Agent {
 
 				// Send message
 				send(msg);
-				// System.out.println("Send message : " + getAID());
+				System.out.println(getLocalName() + " REPEAT fire alert message");
 			}
 
 		}
 
 		@Override
 		public boolean done() {
-			// TODO Auto-generated method stub
-			return false;
+			return alertsend;
 		}
 
 	}
 
 	/**
-	 * fireDetectedBehaviour behaviour
+	 * receiveFireAlertBehaviour behaviour
 	 */
 	class receiveFireAlertBehaviour extends SimpleBehaviour {
 		private static final long serialVersionUID = 1L;
@@ -826,15 +820,14 @@ public class Human extends Agent {
 		public void action() {
 			if (done())
 				return;
-			//System.out.println("Execute receiveFireAlertBehaviour");
+			System.out.println("Execute receiveFireAlertBehaviour");
 			// Evitar que as pessoas que tenham detetado o fogo enviem o alerta
 			// pois já o enviaram em fireDetectedBehaviour
 			if (fireAlert == 1) {
-				alertsend = true;
-				done();
+				removeBehaviour(this);
+				System.out.println("Remove receiveFireAlertBehaviour");
 				return;
 			}
-			// if (alertsend) System.out.println("########## ERROR
 			// #########################");
 			ACLMessage msg = receive(template);
 			if (msg != null) {
@@ -842,7 +835,7 @@ public class Human extends Agent {
 					fireAlert = 1;
 					System.out.println(getLocalName() + " receive fire alert: " + msg.getContent());
 					// find people in the surrounding area
-					ArrayList<AID> humanNear = findNearAgents(myAgent, 2);
+					ArrayList<AID> humanNear = findNearAgents(myAgent, visionRadius);
 					if (humanNear.isEmpty()) {
 						System.out.println(getLocalName() + " Agent " + " No one near at " + myLocation().getX() + "," + myLocation().getY());
 						return;
@@ -865,75 +858,64 @@ public class Human extends Agent {
 					System.out.println(getLocalName() + " Send Fire Alert message heared.");
 
 					alertsend = true;
+
+					// Create Help Behaviour
+					addBehaviour(new HelpBehaviour(myAgent));
+					// Nota: Somente começa a fazer pedidos de ajuda quando o fogo é detetado
+
+					// Create repeated Fire alert behaviour
+					// Current Tick
+					double start = RunEnvironment.getInstance().getCurrentSchedule().getTickCount();
+					double startAt = start + 5;
+					System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());
+					ISchedule schedule = RunEnvironment.getInstance().getCurrentSchedule();
+					ScheduleParameters scheduleParams = ScheduleParameters.createRepeating(startAt, 5.0);
+					schedule.schedule(scheduleParams, this, "repeatAlert");
 				}
 			}
 		}
 
+		public void repeatAlert() {
+			System.out.println("Execute repeatAlert");
+			if (exitAlive == 0) {
+				System.out.println(getLocalName() + " Repeat Fire Alert.");
+				// find people in the surrounding area
+				ArrayList<AID> humanNear = findNearAgents(myAgent, visionRadius);
+				if (humanNear.isEmpty()) {
+					return;
+				}
+
+				// make help request
+				ACLMessage msg = new ACLMessage(ACLMessage.PROPAGATE);
+
+				// Define who's gone receive the message
+				for (AID human : humanNear)
+					msg.addReceiver(human);
+
+				// Message Content
+				msg.setContent(FIRE_MESSAGE);
+				msg.setLanguage(codec.getName());
+				msg.setOntology(serviceOntology.getName());
+
+				// Send message
+				send(msg);
+				System.out.println(getLocalName() + " REPEAT fire alert message");
+			}
+
+		}
+
 		@Override
 		public boolean done() {
-			// TODO Auto-generated method stub
 			return alertsend;
-		}
-	}
-
-	/**
-	 * receiveInform Behaviour
-	 */
-	class receiveInformBehaviour extends SimpleBehaviour{
-		private static final long serialVersionUID = 1L;
-		private MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.INFORM),
-				MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME));
-
-		// private MessageTemplate template =
-		// MessageTemplate.MatchPerformative(ACLMessage.INFORM);
-		public receiveInformBehaviour(Agent a) {
-			super(a);
-		}
-
-		public void action() {
-			if (done())
-				return;
-			//System.out.println("Execute receiveInformBehaviour");
-			ACLMessage msg = receive(template);
-			if (msg != null) {
-				GoToPoint goToPoint;
-				try {
-					goToPoint = (GoToPoint) msg.getContentObject();
-					// Se for necessário saber a localização do segurança
-					Security security = findAgent(msg.getSender());
-					System.out.println(getLocalName() + " receive Information go to EXIT at: " + goToPoint.getX() + "," + goToPoint.getY() + " from  "
-							+ msg.getSender().getLocalName() + " " + security.getLocation().getX() + "," + security.getLocation().getY());
-
-					knowExit = 1;
-					exitX = goToPoint.getX();
-					exitY = goToPoint.getY();
-				} catch (UnreadableException e) {
-					e.printStackTrace();
-				}
-
-			}
-
-		}
-
-		@Override
-		public boolean done() {
-			return false;
 		}
 	}
 
 	/**
 	 * Helper behaviour
 	 */
-	class HelpBehaviour extends SimpleBehaviour {
-		private static final int HELP_OFFER_TIMEOUT = 1000;
+	class HelpBehaviour extends CyclicBehaviour {
 
-		private final MessageTemplate templateHelp = MessageTemplate.or(
-				MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.ACCEPT_PROPOSAL),
-						MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME)),
-				MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.REJECT_PROPOSAL),
-						MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME)));
-
-		private final MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.CFP),
+		private final MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.QUERY_IF),
 				MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME));
 
 		private static final long serialVersionUID = 1L;
@@ -946,80 +928,124 @@ public class Human extends Agent {
 		public void action() {
 			if (done())
 				return;
-			//System.out.println("Execute HelpBehaviour");
-			ACLMessage myCfp = null;
-
+			System.out.println("Execute HelpBehaviour");
+			ACLMessage myMsg = receive(template);
+			// Already Handle a help request
 			if (handlingHelpRequest) {
-
-				myCfp = receive(templateHelp);
-
-				if (myCfp == null) {
-					block(HELP_OFFER_TIMEOUT);
+				if (myMsg != null) {
+					System.out.println("Received QUERY_IF message from agent " + myMsg.getSender().getName() + " can't help");
+					ACLMessage reply = myMsg.createReply();
+					if (HELP_MESSAGE.equals(myMsg.getContent())) {
+						reply.setPerformative(ACLMessage.INFORM);
+						reply.setContent(HANDLE_HELP_REQUEST);
+					} else if (INJURED_MESSAGE.equals(myMsg.getContent())) {
+						reply.setPerformative(ACLMessage.INFORM);
+						reply.setContent(HANDLE_HELP_REQUEST);
+					} else {
+						reply.setPerformative(ACLMessage.NOT_UNDERSTOOD);
+						reply.setContent(UNKNOWN);
+					}
+					send(reply);
 					return;
+
 				}
-			} else {
-				myCfp = receive(template);
+
+			} else {// Not help anyone. Help if altruist.
+				if (myMsg != null) {
+					if (myMsg.getPerformative() == ACLMessage.QUERY_IF) {
+						// Receive a QUERY_IF
+						handleHelpRequest(myMsg);
+					}
+
+				}
 			}
 
-			if (myCfp != null && myCfp.getPerformative() == ACLMessage.CFP) {
+			// if not know exit and know fire alert request help for directions
+			if (knowExit == 0 && fireAlert == 1) {
+				ArrayList<Human> listNearHuman = findNearHuman(getAgent(), visionRadius);
+				if (!listNearHuman.isEmpty()) {
 
-				Class<? extends Object> messageType = null;
+					// SEND MESSAGE TO ALL Human in that place
+					ACLMessage msgSend = new ACLMessage(ACLMessage.QUERY_IF);
 
-				try {
-					messageType = ((Object) getContentManager().extractContent(myCfp)).getClass();
-				} catch (CodecException | OntologyException e) {
-					e.printStackTrace();
-					return;
+					System.out.print(getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " visionRadius " + visionRadius + " Found Human");
+
+					// Define who's gone receive the message
+					for (int i = 0; i < listNearHuman.size(); i++) {
+						System.out.print(" at position:" + listNearHuman.get(i).myLocation().getX() + "," + listNearHuman.get(i).myLocation().getY());
+						Human human = (Human) listNearHuman.get(i);
+						msgSend.addReceiver(human.getAID());
+					}
+					System.out.println(" send help request.");
+					// Message Content
+					msgSend.setContent(HELP_MESSAGE);
+					msgSend.setLanguage(codec.getName());
+					msgSend.setOntology(serviceOntology.getName());
+
+					// Send message
+					send(msgSend);
 				}
-
-				System.out.println(getLocalName() + " heard " + messageType.getSimpleName() + " from " + myCfp.getSender().getLocalName());
 			}
 
 		}
 
 		private void handleHelpRequest(ACLMessage request) {
-			if (helpedHuman != null || handlingHelpRequest) {
+			if (altruist == 0 || getAlive() == 0)
 				return;
-			}
 
-			HelpRequest confirmation;
-			try {
-				confirmation = (HelpRequest) getContentManager().extractContent(request);
-				if (getAlive() == 0) {
-					// System.out.println("HelpRequest from dead " +
-					// request.getSender().getLocalName());
-					return;
+			final MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.QUERY_IF),
+					MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME));
+
+			ACLMessage msg = receive(template);
+			// TODO implement Altruism and injured
+			if (msg != null) {
+				if (knowExit == 1 && altruist > 0) {
+					ACLMessage reply = msg.createReply();
+					String content = msg.getContent();
+					if ((content != null) && (content.indexOf("EXIT") != -1)) {
+						// if was send a request for exit info
+						reply.setPerformative(ACLMessage.INFORM);
+						GridPoint point = new GridPoint(exitX, exitY);
+						GoToPoint goToPoint = new GoToPoint(point.getX(), point.getY());
+
+						try {
+							// send reply
+							reply.setContentObject(goToPoint);
+							send(reply);
+							helpHumansCount = 1;
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+						System.out.println(getLocalName() + " send help reply " + msg.getSender().getLocalName());
+					}
+
+					// TODO implement Save Human
+					if (altruist > 1) {
+						if ((content != null) && (content.equals(INJURED_MESSAGE))) {
+							// if was send a request for save rescue
+							reply.setPerformative(ACLMessage.INFORM);
+							try {
+								// send reply
+								reply.setContentObject(this);
+								send(reply);
+								saveHumansCount = 1;
+								handlingHelpRequest = true;
+							} catch (IOException e) {
+								e.printStackTrace();
+							}
+							// Store the human to save
+							humanToCarry = ((Human) findAgent(msg.getSender()));
+							GridPoint humanPoint = humanToCarry.myLocation();
+							System.out.println(getLocalName() + " send save reply " + msg.getSender().getLocalName() + " at: " + humanPoint.getX() + ","
+									+ humanPoint.getY() + " will help");
+						}
+					}
+
+				} else {
+					System.out.println(getLocalName() + " can't help " + msg.getSender().getLocalName());
 				}
-			} catch (CodecException | OntologyException e1) {
-				return;
 			}
 
-			if (altruism > confirmation.getVisionRadius()) {
-				// send reply
-				ACLMessage reply = request.createReply();
-				reply.setPerformative(ACLMessage.PROPOSE);
-				HelpReply replyMessage = new HelpReply(visionRadius);
-
-				try {
-					// send reply
-					getContentManager().fillContent(reply, replyMessage);
-					send(reply);
-
-					handlingHelpRequest = true;
-
-					// System.out.println("HelpReply sent by" + getLocalName());
-					return;
-				} catch (CodecException | OntologyException e) {
-					e.printStackTrace();
-				}
-			}
-
-			System.out.println("HelpRequest ignored by" + getLocalName());
-		}
-
-		@Override
-		public boolean done() {
-			return false;
 		}
 	}
 
@@ -1039,16 +1065,18 @@ public class Human extends Agent {
 				System.out.println("Human " + getLocalName() + " done");
 				return;
 			}
-			//System.out.println("Execute moveHandler");
-			GridCellNgh<Human> nghCreator = new GridCellNgh<Human>(grid, myLocation(), Human.class, 1, 1);
-			List<GridCell<Human>> gridCells = nghCreator.getNeighborhood(true);
-			SimUtilities.shuffle(gridCells, RandomHelper.getUniform());
 
-			if (knowExit == 1) {
+			handleHelpInform();
+
+			if (knowExit == 1 && condition == Condition.healthy) {
 				moveToPoint(new GridPoint(exitX, exitY));
 				return;
 			}
-			if (knowSecurity == 1) {
+			if (knowSecurity == 1 && myLocation().getX() < 20) {
+				moveToPoint((new GridPoint(securityX, securityY)));
+				return;
+			}
+			if (knowSecurity == 1 && condition == Condition.healthy) {
 				moveToPoint((new GridPoint(securityX, securityY)));
 				return;
 			}
@@ -1056,42 +1084,47 @@ public class Human extends Agent {
 			GridPoint exitRomsPointTop = new GridPoint(19, 20);
 			GridPoint exitRomsPointBottom = new GridPoint(19, 8);
 			GridPoint exitRomsPoint = null;
-			
-			if(getDistBetween(myLocation(),exitRomsPointTop) < getDistBetween(myLocation(),exitRomsPointBottom)){
-				// Choose top Exit
-				if(validPath(exitRomsPointTop)){
-					exitRomsPoint = new GridPoint(20,20);
-					//System.out.println(getLocalName() + " goto exitRomsPointTop.");
-				} else{
-					// There is no path to the shortest exit lets try the other one
-					if(validPath(exitRomsPointBottom)){
-						exitRomsPoint = new GridPoint(20,8);
-						//System.out.println(getLocalName() + " goto exitRomsPointBottom.");
+			if (fireAlert == 1) {
+				if (getDistBetween(myLocation(), exitRomsPointTop) < getDistBetween(myLocation(), exitRomsPointBottom)) {
+					// Choose top Exit more close
+					if (validPath(exitRomsPointTop)) {
+						exitRomsPoint = new GridPoint(20, 20);
+						System.out.println(getLocalName() + " goto exitRomsPointTop.");
 					} else {
-						//System.out.println(getLocalName() + " is trapped in the fire.");
+						// There is no path to the shortest exit lets try the other one
+						if (validPath(exitRomsPointBottom)) {
+							exitRomsPoint = new GridPoint(20, 8);
+							System.out.println(getLocalName() + " goto exitRomsPointBottom.");
+						} else {
+							System.out.println(getLocalName() + " is trapped in the fire.");
+						}
 					}
-				}
-				
-			} else {
-				// Choose Bottom Exit
-				if(validPath(exitRomsPointBottom)){
-					exitRomsPoint = new GridPoint(20,8);
-					//System.out.println(getLocalName() + " goto exitRomsPointBottom.");
-				} else{
-					// There is no path to the shortest exit lets try the other one
-					if(validPath(exitRomsPointTop)){
-						exitRomsPoint = new GridPoint(20,20);
-						//System.out.println(getLocalName() + " goto exitRomsPointTop.");
+
+				} else {
+					// Choose Bottom Exit more close
+					if (validPath(exitRomsPointBottom)) {
+						exitRomsPoint = new GridPoint(20, 8);
+						System.out.println(getLocalName() + " goto exitRomsPointBottom.");
 					} else {
-						System.out.println(getLocalName() + " is trapped in the fire.");
+						// There is no path to the shortest exit lets try the other one
+						if (validPath(exitRomsPointTop)) {
+							exitRomsPoint = new GridPoint(20, 20);
+							System.out.println(getLocalName() + " goto exitRomsPointTop.");
+						} else {
+							System.out.println(getLocalName() + " is trapped in the fire.");
+						}
 					}
 				}
 			}
 
-			if (myLocation().getX() < 20 && fireAlert == 1 && exitRomsPoint!=null)
+			if (myLocation().getX() < 20 && fireAlert == 1 && exitRomsPoint != null) {
 				moveToPoint(exitRomsPoint);
-			else {
+			} else {
 				moveToExplore(myLocation());
+				if (condition == Condition.injured) {
+					removeBehaviour(this);
+					addBehaviour(new injuredHandler(myAgent));
+				}
 			}
 
 			// Somente toma comportamento diferente após a deteção de Incêndio
@@ -1099,15 +1132,12 @@ public class Human extends Agent {
 				// Se for visivel a saída no raio de visão
 				// Registar o local de saida e ir para a saída
 				// Responder aos pedidos de ajuda
-				// Adicionar um parametro que permita testar a simulação sem
-				// esta opção
-				// TODO
+				// Adicionar um parametro que permita testar a simulação sem esta opção
 
 				ArrayList<Door> listNearDoors = findNearDoors(getAgent(), visionRadius);
 
 				if (listNearDoors.size() > 0) {
-					// Se avistar mais do que uma escolher a que estiver mais
-					// perto
+					// Se avistar mais do que uma escolher a que estiver mais perto
 					knowExit = 1;
 					int distToDoor = 99999;
 					System.out
@@ -1132,16 +1162,12 @@ public class Human extends Agent {
 				// Perguntar onde é a saída
 				// Registar a saída
 				// Responder aos pedidos de ajuda
-				// Adicionar um parametro que permita testar a simulação sem
-				// esta opção
-				// TODO
 
 				ArrayList<Security> listNearSecurity = findNearSecurity(getAgent(), visionRadius);
 
 				if (listNearSecurity.size() > 0) {
 					knowSecurity = 1;
-					// Se avistar mais do que um segurança escolher o que
-					// estiver mais perto
+					// Se avistar mais do que um segurança escolher o que estiver mais perto
 					int distToSecurity = 99999;
 					System.out.print(
 							getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " visionRadius " + visionRadius + " Found Security");
@@ -1159,6 +1185,47 @@ public class Human extends Agent {
 			} // END if (fireAlert == 1)
 		}
 
+		private void handleHelpInform() {
+
+			final MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.INFORM),
+					MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME));
+
+			ACLMessage msg = null;
+			while ((msg = receive(template)) != null) {
+				GoToPoint goToPoint;
+				try {
+					if ((goToPoint = (GoToPoint) msg.getContentObject()) == null)
+						humanToCarryMe = (Human) msg.getContentObject();
+					if (goToPoint != null) {
+
+						// Se for necessário saber a localização do segurança
+						// Security security = findAgent(msg.getSender());
+
+						System.out.println(getLocalName() + " receive Information go to EXIT at: " + goToPoint.getX() + "," + goToPoint.getY() + " from  "
+								+ msg.getSender().getLocalName());
+						knowExit = 1;
+						exitX = goToPoint.getX();
+						exitY = goToPoint.getY();
+						if (msg.getSender().getLocalName().indexOf("person") != -1) {
+							wasHelped = 1;
+						}
+					} else if (humanToCarryMe != null) {
+						// TODO receive save help from other human
+						System.out.println(getLocalName() + " receive save info at: " + humanToCarryMe.myLocation().getX() + ","
+								+ humanToCarryMe.myLocation().getY() + " from  " + msg.getSender().getLocalName());
+						gothumanToCarryMe = true;
+
+					} else {
+						System.out.println(getLocalName() + " receive msg " + msg.getContent() + " from " + msg.getSender().getLocalName());
+					}
+				} catch (UnreadableException e) {
+					e.printStackTrace();
+				}
+
+			}
+
+		}
+
 		@Override
 		public boolean done() {
 			if (fireAlert == 1) {
@@ -1168,8 +1235,11 @@ public class Human extends Agent {
 					takeDown();
 					return true;
 				}
-				if (checkSecurityAtLocation(myLocation().getX(), myLocation().getY())) {
-					System.out.println(getLocalName() + " Msg send to Security");
+
+				if (!checkSecurityAtLocation(myLocation().getX(), myLocation().getY()) && knowSecurity == 1 && myLocation().getX() == securityX
+						&& myLocation().getY() == securityY) {
+					// Security change position lets try to find him again
+					knowSecurity = 0;
 				}
 				if (checkFireAtLocation(myLocation().getX(), myLocation().getY())) {
 					alive = 0;
@@ -1182,13 +1252,72 @@ public class Human extends Agent {
 		}
 
 	}
-	
+
 	public boolean validPath(GridPoint point) {
 		GridPoint nextPoint = getNextPoint(myLocation(), point);
 		if (nextPoint != null) {
 			return true;
 		}
 		return false;
+	}
+
+	class injuredHandler extends SimpleBehaviour {
+
+		private static final long serialVersionUID = 1L;
+
+		public injuredHandler(Agent a) {
+			super(a);
+		}
+
+		public void action() {
+			if (done()) {
+				System.out.println("Human " + getLocalName() + " done");
+				return;
+			}
+			// TODO injured behaviour
+
+			if (condition == Condition.injured && humanToCarryMe.myLocation().getX() == myLocation().getX()
+					&& humanToCarryMe.myLocation().getY() == myLocation().getY()) {
+				// Help arrived follow the human helper
+				condition = Condition.saved;
+			}
+
+			if (condition == Condition.saved) {
+				moveToPoint(humanToCarryMe.myLocation());
+			}
+			if (wasHelped == 0) {
+				// I'm injuerd need help. Send help request.
+				ArrayList<Human> listNearHuman = findNearHuman(getAgent(), visionRadius);
+				if (!listNearHuman.isEmpty()) {
+
+					// SEND MESSAGE TO ALL Human in that place
+					ACLMessage msgSend = new ACLMessage(ACLMessage.QUERY_IF);
+
+					System.out.print(getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " visionRadius " + visionRadius + " Found Human");
+
+					// Define who's gone receive the message
+					for (int i = 0; i < listNearHuman.size(); i++) {
+						System.out.print(" at position:" + listNearHuman.get(i).myLocation().getX() + "," + listNearHuman.get(i).myLocation().getY());
+						Human human = (Human) listNearHuman.get(i);
+						msgSend.addReceiver(human.getAID());
+					}
+					System.out.println(" send Save ME request.");
+					// Message Content
+					msgSend.setContent(INJURY_MESSAGE);
+					msgSend.setLanguage(codec.getName());
+					msgSend.setOntology(serviceOntology.getName());
+
+					// Send message
+					send(msgSend);
+				}
+			}
+
+		}
+
+		@Override
+		public boolean done() {
+			return false;
+		}
 	}
 
 }

@@ -26,6 +26,8 @@ public class SceneBuilder {
 	private int securityCount;
 	private int doorsCount;
 	private int radiusVision;
+	private int fire_radius;
+	private int load_scene;
 
 	SceneBuilder(Context<Object> context) {
 		this.context = context;
@@ -42,10 +44,13 @@ public class SceneBuilder {
 			this.securityCount = (Integer) params.getValue("security_count");
 			this.doorsCount = (Integer) params.getValue("doors_count");
 			this.radiusVision = (Integer) params.getValue("radius_vision");
+			this.fire_radius = (Integer) params.getValue("fire_radius");
+			this.load_scene = (Integer) params.getValue("load_scene");
 
-			buildWalls(this.grid, context);
-			generateExits(this.grid, context, doorsCount);
-			
+			buildWalls();
+			generateExits();
+			System.out.println("#########   Animation START  #########");
+
 			context.add(this);
 
 		} catch (Exception e) {
@@ -53,7 +58,7 @@ public class SceneBuilder {
 		}
 
 	}
-	
+
 	@ScheduledMethod(start = 15, interval = 30)
 	public void step() {
 		List<Fire> fires = new ArrayList<Fire>();
@@ -69,7 +74,7 @@ public class SceneBuilder {
 		}
 
 	}
-	
+
 	public ContainerController getAgentContainer() {
 		return agentContainer;
 	}
@@ -78,7 +83,7 @@ public class SceneBuilder {
 		this.agentContainer = agentContainer;
 	}
 
-	private void generateExits(Grid<Object> grid, Context<Object> context, int doorsCount) {
+	private void generateExits() {
 		while (doorsCount > 0) {
 			double chance = RandomHelper.nextDoubleFromTo(0, 1);
 			int doorExitX = 0, doorExitY = 0;
@@ -119,7 +124,7 @@ public class SceneBuilder {
 
 	public void createHumans() {
 		for (int i = 0; i < humanCount; i++) {
-			Human newHuman = new Human(grid, context, State.inRoom, Condition.healthy, 1, radiusVision);
+			Human newHuman = new Human(grid, context, Condition.healthy, 1, radiusVision);
 			context.add(newHuman);
 			int startX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 20);
 			int startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
@@ -127,7 +132,8 @@ public class SceneBuilder {
 				startX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 20);
 				startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
 			}
-			grid.moveTo(newHuman, startX, startY);
+			// grid.moveTo(newHuman, startX, startY);
+			grid.moveTo(newHuman, 4, 20);
 			try {
 				agentContainer.acceptNewAgent("person" + i, newHuman).start();
 			} catch (StaleProxyException e) {
@@ -137,24 +143,98 @@ public class SceneBuilder {
 	}
 
 	public void createSecurity() {
-		for (int i = 0; i < securityCount; i++) {
 
-			int startX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 1);
+		switch (load_scene) {
+		case 0:
+			int startX = RandomHelper.nextIntFromTo(3, grid.getDimensions().getWidth() - 30);
 			int startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
 			while (!isValidPosition(startX, startY, grid)) {
-				startX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 1);
+				startX = RandomHelper.nextIntFromTo(3, grid.getDimensions().getWidth() - 30);
 				startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
 			}
-			Security newSecurity = new Security(grid, context, startX, startY);
+			// Security security0 = new Security(grid, context, startX, startY);
+
+			Security security0 = new Security(grid, context, 2, 12);
+
 			try {
-				agentContainer.acceptNewAgent("security" + i, newSecurity).start();
+				agentContainer.acceptNewAgent("security0", security0).start();
 			} catch (StaleProxyException e) {
 				e.printStackTrace();
 			}
+			for (int i = 1; i < securityCount; i++) {
+
+				startX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 1);
+				startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+				while (!isValidPosition(startX, startY, grid)) {
+					startX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 1);
+					startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+				}
+				Security newSecurity = new Security(grid, context, startX, startY);
+				try {
+					agentContainer.acceptNewAgent("security" + i, newSecurity).start();
+				} catch (StaleProxyException e) {
+					e.printStackTrace();
+				}
+			}
+			break;
+			
+		case 1:
+			
+			startX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 25, grid.getDimensions().getWidth() - 1);
+			startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+			for (int i = 0; i < securityCount; i++) {
+
+				startX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 25, grid.getDimensions().getWidth() - 1);
+				startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+				while (!isValidPosition(startX, startY, grid)) {
+					startX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 25, grid.getDimensions().getWidth() - 1);
+					startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+				}
+				Security newSecurity = new Security(grid, context, startX, startY);
+				try {
+					agentContainer.acceptNewAgent("security" + i, newSecurity).start();
+				} catch (StaleProxyException e) {
+					e.printStackTrace();
+				}
+			}
+			break;			
+			
+			default:
+				startX = RandomHelper.nextIntFromTo(3, grid.getDimensions().getWidth() - 30);
+				startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+				while (!isValidPosition(startX, startY, grid)) {
+					startX = RandomHelper.nextIntFromTo(3, grid.getDimensions().getWidth() - 30);
+					startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+				}
+				security0 = new Security(grid, context, startX, startY);
+
+				try {
+					agentContainer.acceptNewAgent("security0", security0).start();
+				} catch (StaleProxyException e) {
+					e.printStackTrace();
+				}
+				for (int i = 1; i < securityCount; i++) {
+
+					startX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 25, grid.getDimensions().getWidth() - 1);
+					startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+					while (!isValidPosition(startX, startY, grid)) {
+						startX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 25, grid.getDimensions().getWidth() - 1);
+						startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+					}
+					Security newSecurity = new Security(grid, context, startX, startY);
+					try {
+						agentContainer.acceptNewAgent("security" + i, newSecurity).start();
+					} catch (StaleProxyException e) {
+						e.printStackTrace();
+					}
+				}			
+				break;
+			
+			
 		}
 	}
 
-	private void buildWalls(Grid<Object> grid, Context<Object> context) {
+	private void buildWalls() {
 
 		// LEFT WALL
 		for (int i = 0; i < grid.getDimensions().getHeight(); i++) {
@@ -184,42 +264,150 @@ public class SceneBuilder {
 			grid.moveTo(wall, i, 0);
 		}
 
-		for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
-			if (i != 3 && i != 12) {
-				Wall wall = new Wall(grid);
-				context.add(wall);
-				grid.moveTo(wall, 10, i);
+		loadWallsForScene();
+
+	}
+
+	private void loadWallsForScene() {
+		switch (load_scene) {
+		case 0:
+			for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
+				if (i != 3 && i != 12) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, 10, i);
+				}
+
 			}
+
+			for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
+				if (i != 8 && i != 20) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, 19, i);
+				}
+
+			}
+
+			for (int i = 1; i < grid.getDimensions().getWidth() - 20; i++) {
+				if (i != 8) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, i, 9);
+				}
+
+			}
+
+			for (int i = 1; i < grid.getDimensions().getWidth() - 20; i++) {
+				if (i != 2 && i != 8 && i != 14) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, i, 16);
+				}
+
+			}
+			break;
+
+		case 1:
+			for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
+				if (i != 3 && i != 12) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, 10, i);
+				}
+
+			}
+
+			for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
+				if (i != 8 && i != 20) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, 19, i);
+				}
+
+			}
+
+			for (int i = 1; i < grid.getDimensions().getWidth() - 20; i++) {
+				if (i != 8) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, i, 9);
+				}
+
+			}
+
+			for (int i = 1; i < grid.getDimensions().getWidth() - 20; i++) {
+				if (i != 2 && i != 8 && i != 14) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, i, 16);
+				}
+
+			}
+			
+			//Block
+			buildBlockAt(25,10,2,4);
+			buildBlockAt(25,20,10,3);
+			buildBlockAt(23,5,10,3);
+			buildBlockAt(34,2,3,10);
+			buildBlockAt(13,11,3,4);
+			buildBlockAt(22,15,10,3);
+			break;
+
+		default:
+
+			for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
+				if (i != 3 && i != 12) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, 10, i);
+				}
+
+			}
+
+			for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
+				if (i != 8 && i != 20) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, 19, i);
+				}
+
+			}
+
+			for (int i = 1; i < grid.getDimensions().getWidth() - 20; i++) {
+				if (i != 8) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, i, 9);
+				}
+
+			}
+
+			for (int i = 1; i < grid.getDimensions().getWidth() - 20; i++) {
+				if (i != 2 && i != 8 && i != 14) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, i, 16);
+				}
+
+			}
+
+			break;
 
 		}
 
-		for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
-			if (i != 8 && i != 20) {
+	}
+
+	private void buildBlockAt(int startX, int startY, int dimI, int dimJ) {
+		for (int i = 0; i < dimI; i++) {
+			for (int j = 0; j < dimJ; j++) {
 				Wall wall = new Wall(grid);
 				context.add(wall);
-				grid.moveTo(wall, 19, i);
+				grid.moveTo(wall, startX + i, startY + j);
 			}
 
 		}
-
-		for (int i = 1; i < grid.getDimensions().getWidth() - 20; i++) {
-			if (i != 8) {
-				Wall wall = new Wall(grid);
-				context.add(wall);
-				grid.moveTo(wall, i, 9);
-			}
-
-		}
-
-		for (int i = 1; i < grid.getDimensions().getWidth() - 20; i++) {
-			if (i != 2 && i != 8 && i != 14) {
-				Wall wall = new Wall(grid);
-				context.add(wall);
-				grid.moveTo(wall, i, 16);
-			}
-
-		}
-
+		
 	}
 
 	private boolean isValidPosition(int startX, int startY, Grid<Object> grid) {
@@ -244,6 +432,9 @@ public class SceneBuilder {
 			startX = RandomHelper.nextIntFromTo(1, 21);
 			startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
 		}
+
+		startX = 2;
+		startY = 22;
 		new ScheduleFire(grid, context, startX, startY);
 
 		// System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());

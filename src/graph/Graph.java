@@ -187,7 +187,7 @@ public class Graph {
 
 	public GridPoint getNextPoint(String startName, String endName) {
 		if (!graph.containsKey(endName)) {
-			System.err.printf("Graph doesn't contain end vertex \"%s\"\n", endName);
+			//System.err.printf("Graph doesn't contain end vertex \"%s\"\n", endName);
 			return null;
 		}
 
@@ -197,7 +197,7 @@ public class Graph {
 	}
 	public int getDist(String endName) {
 		if (!graph.containsKey(endName)) {
-			System.err.printf("Graph doesn't contain end vertex \"%s\"\n", endName);
+			//System.err.printf("Graph doesn't contain end vertex \"%s\"\n", endName);
 			return -1;
 		}
 
