@@ -161,13 +161,13 @@ public class Human extends Agent {
 		return false;
 	}
 
-	private boolean checkSecurityAtLocation(int x, int y) {
+	private List<Object> checkSecurityAtLocation(int x, int y) {
 		// Nota: securities = títulos mas para o caso pouco interessa.
 		// Seguranças = Security Guards.
 
 		// It only makes sense to look for security if there is a fire
-		if (fireAlert == 0)
-			return false;
+		// if (fireAlert == 0)
+		// return false;
 
 		List<Object> securities = new ArrayList<Object>();
 		for (Object obj : grid.getObjectsAt(x, y)) {
@@ -175,7 +175,10 @@ public class Human extends Agent {
 				securities.add(obj);
 			}
 		}
+		return securities;
+	}
 
+	private void sendMsgToSecurity(List<Object> securities) {
 		if (securities.size() > 0) {
 			// SEND MESSAGE TO ALL Security in that place
 			ACLMessage msgSend = new ACLMessage(ACLMessage.QUERY_REF);
@@ -193,10 +196,7 @@ public class Human extends Agent {
 
 			// Send message
 			send(msgSend);
-
-			return true;
 		}
-		return false;
 	}
 
 	private boolean checkFireAtLocation(int x, int y) {
@@ -912,6 +912,8 @@ public class Human extends Agent {
 
 	/**
 	 * Helper behaviour
+	 * Try to get help for the emergency situation
+	 * Try to know where exit is
 	 */
 	class HelpBehaviour extends CyclicBehaviour {
 
@@ -926,41 +928,49 @@ public class Human extends Agent {
 		}
 
 		public void action() {
-			if (done())
-				return;
+			if (exitAlive == 1)
+				removeBehaviour(this);
 			System.out.println("Execute HelpBehaviour");
-			ACLMessage myMsg = receive(template);
-			// Already Handle a help request
-			if (handlingHelpRequest) {
-				if (myMsg != null) {
-					System.out.println("Received QUERY_IF message from agent " + myMsg.getSender().getName() + " can't help");
-					ACLMessage reply = myMsg.createReply();
-					if (HELP_MESSAGE.equals(myMsg.getContent())) {
-						reply.setPerformative(ACLMessage.INFORM);
-						reply.setContent(HANDLE_HELP_REQUEST);
-					} else if (INJURED_MESSAGE.equals(myMsg.getContent())) {
-						reply.setPerformative(ACLMessage.INFORM);
-						reply.setContent(HANDLE_HELP_REQUEST);
-					} else {
-						reply.setPerformative(ACLMessage.NOT_UNDERSTOOD);
-						reply.setContent(UNKNOWN);
+
+			// ##########################################################
+			// I can only help if i know where exit is
+			if (knowExit == 1) {
+				// Handle a request for help
+				ACLMessage myMsg = receive(template);
+				// already help someone
+				if (handlingHelpRequest) {
+					if (myMsg != null) {
+						ACLMessage reply = myMsg.createReply();
+						if (HELP_MESSAGE.equals(myMsg.getContent())) {
+							reply.setPerformative(ACLMessage.INFORM);
+							reply.setContent(HANDLE_HELP_REQUEST);
+						} else if (INJURED_MESSAGE.equals(myMsg.getContent())) {
+							reply.setPerformative(ACLMessage.INFORM);
+							reply.setContent(HANDLE_HELP_REQUEST);
+						} else {
+							reply.setPerformative(ACLMessage.NOT_UNDERSTOOD);
+							reply.setContent(UNKNOWN);
+						}
+						System.out.println("Received Request message from agent " + myMsg.getSender().getName() + " reply " + reply.getContent());
+						send(reply);
+						return;
+
 					}
-					send(reply);
-					return;
+				} else {
+					// Not help anyone. Help if altruist.
+					// If receive any msg go help
+					if (myMsg != null) {
+						if (myMsg.getPerformative() == ACLMessage.QUERY_IF) {
+							// Receive a QUERY_IF
+							handleHelpRequest(myMsg);
+						}
 
-				}
-
-			} else {// Not help anyone. Help if altruist.
-				if (myMsg != null) {
-					if (myMsg.getPerformative() == ACLMessage.QUERY_IF) {
-						// Receive a QUERY_IF
-						handleHelpRequest(myMsg);
 					}
-
 				}
 			}
+			// ##############################################
 
-			// if not know exit and know fire alert request help for directions
+			// if not know exit and know fire alert -> send help request for directions
 			if (knowExit == 0 && fireAlert == 1) {
 				ArrayList<Human> listNearHuman = findNearHuman(getAgent(), visionRadius);
 				if (!listNearHuman.isEmpty()) {
@@ -986,6 +996,7 @@ public class Human extends Agent {
 					send(msgSend);
 				}
 			}
+			// ######################################################################
 
 		}
 
@@ -1005,18 +1016,18 @@ public class Human extends Agent {
 					if ((content != null) && (content.indexOf("EXIT") != -1)) {
 						// if was send a request for exit info
 						reply.setPerformative(ACLMessage.INFORM);
-						GridPoint point = new GridPoint(exitX, exitY);
-						GoToPoint goToPoint = new GoToPoint(point.getX(), point.getY());
+						GoToPoint goToPoint = new GoToPoint(exitX, exitY);
 
 						try {
 							// send reply
 							reply.setContentObject(goToPoint);
 							send(reply);
+							System.out
+									.println(getLocalName() + " send help reply " + msg.getSender().getLocalName() + " go to EXIT at: " + exitX + "," + exitY);
 							helpHumansCount = 1;
 						} catch (IOException e) {
 							e.printStackTrace();
 						}
-						System.out.println(getLocalName() + " send help reply " + msg.getSender().getLocalName());
 					}
 
 					// TODO implement Save Human
@@ -1030,14 +1041,17 @@ public class Human extends Agent {
 								send(reply);
 								saveHumansCount = 1;
 								handlingHelpRequest = true;
+
+								// Store the human to save
+								humanToCarry = ((Human) findAgent(msg.getSender()));
+								GridPoint humanPoint = humanToCarry.myLocation();
+								System.out.println(getLocalName() + " send save reply " + msg.getSender().getLocalName() + " at: " + humanPoint.getX() + ","
+										+ humanPoint.getY() + " will help");
+
 							} catch (IOException e) {
 								e.printStackTrace();
 							}
-							// Store the human to save
-							humanToCarry = ((Human) findAgent(msg.getSender()));
-							GridPoint humanPoint = humanToCarry.myLocation();
-							System.out.println(getLocalName() + " send save reply " + msg.getSender().getLocalName() + " at: " + humanPoint.getX() + ","
-									+ humanPoint.getY() + " will help");
+
 						}
 					}
 
@@ -1065,26 +1079,95 @@ public class Human extends Agent {
 				System.out.println("Human " + getLocalName() + " done");
 				return;
 			}
+			
+			// If there is no Fire Nothing to do
+			if(fireAlert == 0){
+				moveToExplore(myLocation());
+				return;
+			}
 
+			// Try to Receive Information from Help Request
+			// For decide where to go
+			// Receive goToPoint or HumanToCarryMe Information
+			// Decide if know security
 			handleHelpInform();
 
-			if (knowExit == 1 && condition == Condition.healthy) {
-				moveToPoint(new GridPoint(exitX, exitY));
-				return;
-			}
-			if (knowSecurity == 1 && myLocation().getX() < 20) {
-				moveToPoint((new GridPoint(securityX, securityY)));
-				return;
-			}
-			if (knowSecurity == 1 && condition == Condition.healthy) {
-				moveToPoint((new GridPoint(securityX, securityY)));
-				return;
+			if (condition == Condition.healthy) {
+				if (knowExit == 1) {
+					moveToPoint(new GridPoint(exitX, exitY));
+					return;
+				}
+				if (knowSecurity == 1) {
+					moveToPoint((new GridPoint(securityX, securityY)));
+					return;
+				}
 			}
 
+			// ###########################################################
+			// Somente toma comportamento diferente após a deteção de Incêndio
+			// Observar se consegue determinar uma saída ou um segurança
+			// para perguntar pela saída mais próximo
+			// State knowExit = 0 && knowSecurity = 0
+			if (fireAlert == 1 && knowExit == 0) {
+				// Se for visivel a saída no raio de visão
+				// Registar o local de saida e ir para a saída
+				// Responder aos pedidos de ajuda
+				ArrayList<Door> listNearDoors = findNearDoors(getAgent(), visionRadius);
+				if (listNearDoors.size() > 0) {
+					// Se avistar mais do que uma escolher a que estiver mais perto
+					knowExit = 1;
+					int distToDoor = 99999;
+					System.out
+							.print(getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " visionRadius " + visionRadius + " Found Door :");
+					for (int i = 0; i < listNearDoors.size(); i++) {
+						System.out.print(" at position:" + listNearDoors.get(i).getLocation().getX() + "," + listNearDoors.get(i).getLocation().getY());
+						int distDoor = getDistBetween(myLocation(), listNearDoors.get(i).getLocation());
+						if (distDoor < distToDoor) {
+							distToDoor = distDoor;
+							exitX = listNearDoors.get(i).getLocation().getX();
+							exitY = listNearDoors.get(i).getLocation().getY();
+						}
+					}
+					System.out.println("");
+				}
+
+				// Se for visivel um segurança
+				// Perguntar onde é a saída
+				// Registar a saída
+				// Responder aos pedidos de ajuda
+				ArrayList<Security> listNearSecurity = findNearSecurity(getAgent(), visionRadius);
+				if (listNearSecurity.size() > 0) {
+					knowSecurity = 1;
+					// Se avistar mais do que um segurança escolher o que estiver mais perto
+					int distToSecurity = 99999;
+					System.out.print(
+							getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " visionRadius " + visionRadius + " Found Security");
+					for (int i = 0; i < listNearSecurity.size(); i++) {
+						System.out.print(" at position:" + listNearSecurity.get(i).getLocation().getX() + "," + listNearSecurity.get(i).getLocation().getY());
+						int distSecurity = getDistBetween(myLocation(), listNearSecurity.get(i).getLocation());
+						if (distSecurity < distToSecurity) {
+							distToSecurity = distSecurity;
+							securityX = listNearSecurity.get(i).getLocation().getX();
+							securityY = listNearSecurity.get(i).getLocation().getY();
+						}
+					}
+					System.out.println("");
+				}
+			}
+			// ###########################################################
+
+			
+			// ###########################################################
+			// Decide which rooms exit is closer
+			// State knowExit = 0 && knowSecurity = 0 && fireAlert = 1
+			// Move To exitRomsPoint
 			GridPoint exitRomsPointTop = new GridPoint(19, 20);
 			GridPoint exitRomsPointBottom = new GridPoint(19, 8);
-			GridPoint exitRomsPoint = null;
-			if (fireAlert == 1) {
+			// If Still inside rooms go to the exitRomsPoint closer
+			// I can always get to the nearest exit if there is
+			// Even if i'm injured
+			if (myLocation().getX() < 20 && fireAlert == 1) {
+				GridPoint exitRomsPoint = null;
 				if (getDistBetween(myLocation(), exitRomsPointTop) < getDistBetween(myLocation(), exitRomsPointBottom)) {
 					// Choose top Exit more close
 					if (validPath(exitRomsPointTop)) {
@@ -1115,74 +1198,26 @@ public class Human extends Agent {
 						}
 					}
 				}
+
+				if (exitRomsPoint != null)
+					moveToPoint(exitRomsPoint);
+				else {
+					// trapped in the fire
+					// Try to survive as long as i can
+					moveToExplore(myLocation());
+				}
 			}
 
-			if (myLocation().getX() < 20 && fireAlert == 1 && exitRomsPoint != null) {
-				moveToPoint(exitRomsPoint);
-			} else {
+			// I'm outside exitRomsPoint
+			if (myLocation().getX() >= 20 && fireAlert == 1) {
 				moveToExplore(myLocation());
+				// If injured i stay here waiting for help
 				if (condition == Condition.injured) {
 					removeBehaviour(this);
 					addBehaviour(new injuredHandler(myAgent));
 				}
 			}
 
-			// Somente toma comportamento diferente após a deteção de Incêndio
-			if (fireAlert == 1) {
-				// Se for visivel a saída no raio de visão
-				// Registar o local de saida e ir para a saída
-				// Responder aos pedidos de ajuda
-				// Adicionar um parametro que permita testar a simulação sem esta opção
-
-				ArrayList<Door> listNearDoors = findNearDoors(getAgent(), visionRadius);
-
-				if (listNearDoors.size() > 0) {
-					// Se avistar mais do que uma escolher a que estiver mais perto
-					knowExit = 1;
-					int distToDoor = 99999;
-					System.out
-							.print(getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " visionRadius " + visionRadius + " Found Door :");
-					for (int i = 0; i < listNearDoors.size(); i++) {
-						System.out.print(" at position:" + listNearDoors.get(i).getLocation().getX() + "," + listNearDoors.get(i).getLocation().getY());
-						int distDoor = getDistBetween(myLocation(), listNearDoors.get(i).getLocation());
-						if (distDoor < distToDoor) {
-							distToDoor = distDoor;
-							exitX = listNearDoors.get(i).getLocation().getX();
-							exitY = listNearDoors.get(i).getLocation().getY();
-						}
-					}
-					System.out.println("");
-
-					// moveTowards(listNearDoors.get(i).getLocation());
-					// moveToExit(listNearDoors.get(i).getLocation());
-					// getNextPoint(myLocation(),listNearDoors.get(i).getLocation());
-				}
-
-				// Se for visivel um segurança
-				// Perguntar onde é a saída
-				// Registar a saída
-				// Responder aos pedidos de ajuda
-
-				ArrayList<Security> listNearSecurity = findNearSecurity(getAgent(), visionRadius);
-
-				if (listNearSecurity.size() > 0) {
-					knowSecurity = 1;
-					// Se avistar mais do que um segurança escolher o que estiver mais perto
-					int distToSecurity = 99999;
-					System.out.print(
-							getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " visionRadius " + visionRadius + " Found Security");
-					for (int i = 0; i < listNearSecurity.size(); i++) {
-						System.out.print(" at position:" + listNearSecurity.get(i).getLocation().getX() + "," + listNearSecurity.get(i).getLocation().getY());
-						int distSecurity = getDistBetween(myLocation(), listNearSecurity.get(i).getLocation());
-						if (distSecurity < distToSecurity) {
-							distToSecurity = distSecurity;
-							securityX = listNearSecurity.get(i).getLocation().getX();
-							securityY = listNearSecurity.get(i).getLocation().getY();
-						}
-					}
-					System.out.println("");
-				}
-			} // END if (fireAlert == 1)
 		}
 
 		private void handleHelpInform() {
@@ -1229,18 +1264,27 @@ public class Human extends Agent {
 		@Override
 		public boolean done() {
 			if (fireAlert == 1) {
-				if (checkDoorAtLocation(myLocation().getX(), myLocation().getY())) {
-					System.out.println(getLocalName() + " Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
-					exitAlive = 1;
-					takeDown();
-					return true;
+				// ##################################
+				if (knowExit == 1)
+					if (checkDoorAtLocation(myLocation().getX(), myLocation().getY())) {
+						System.out.println(getLocalName() + " Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
+						exitAlive = 1;
+						takeDown();
+						return true;
+					}
+				// ##################################
+				if (knowExit == 0) {
+					List<Object> securities = checkSecurityAtLocation(myLocation().getX(), myLocation().getY());
+					if (securities.size() == 0 && knowSecurity == 1 && myLocation().getX() == securityX && myLocation().getY() == securityY) {
+						// Security change position lets try to find him again
+						knowSecurity = 0;
+					}
+					if (securities.size() > 0 && knowSecurity == 1 && myLocation().getX() == securityX && myLocation().getY() == securityY) {
+						// Same position of security send request for exit position
+						sendMsgToSecurity(securities);
+					}
 				}
-
-				if (!checkSecurityAtLocation(myLocation().getX(), myLocation().getY()) && knowSecurity == 1 && myLocation().getX() == securityX
-						&& myLocation().getY() == securityY) {
-					// Security change position lets try to find him again
-					knowSecurity = 0;
-				}
+				// ##################################
 				if (checkFireAtLocation(myLocation().getX(), myLocation().getY())) {
 					alive = 0;
 					System.out.println(getLocalName() + " Die........");

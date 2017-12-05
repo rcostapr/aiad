@@ -23,14 +23,15 @@ import repast.simphony.random.RandomHelper;
 import repast.simphony.space.grid.Grid;
 import repast.simphony.space.grid.GridPoint;
 import sajas.core.Agent;
+import sajas.core.behaviours.CyclicBehaviour;
 import sajas.core.behaviours.SimpleBehaviour;
 
 public class Security extends Agent {
-	
+
 	public static final String FIRE_MESSAGE = "FIRE Run to EXIT !!!";
-	
+
 	private Grid<Object> grid;
-	//private Context<Object> context;
+	// private Context<Object> context;
 
 	protected Codec codec;
 	protected Ontology serviceOntology;
@@ -57,7 +58,7 @@ public class Security extends Agent {
 
 	public Security(Grid<Object> grid, Context<Object> context, int startX, int startY) {
 		this.grid = grid;
-		//this.context = context;
+		// this.context = context;
 		context.add(this);
 		grid.moveTo(this, startX, startY);
 		this.exitAlive = 0;
@@ -231,6 +232,7 @@ public class Security extends Agent {
 		// add behaviours
 		addBehaviour(new moveHandler(this));
 		addBehaviour(new receiveFireAlertBehaviour(this));
+		addBehaviour(new helpBehaviour(this));
 	}
 
 	@Override
@@ -264,8 +266,6 @@ public class Security extends Agent {
 	 * MoveHandler behaviour
 	 */
 	class moveHandler extends SimpleBehaviour {
-		private MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.QUERY_REF),
-				MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME));
 		private static final long serialVersionUID = 1L;
 
 		public moveHandler(Agent a) {
@@ -274,63 +274,20 @@ public class Security extends Agent {
 
 		public void action() {
 
-			ACLMessage msg = null;
-
 			if (done()) {
 				System.out.println("Security done");
 				return;
 			}
 
-			// Allow security answer to more than one human at same time
-			while ((msg = receive(template)) != null) {
-				ACLMessage reply = msg.createReply();
-				String content = msg.getContent();
-				if ((content != null) && (content.indexOf("EXIT") != -1)) {
-					reply.setPerformative(ACLMessage.INFORM);
-					GridPoint point = getNearExit();
-					GoToPoint goToPoint = new GoToPoint(point.getX(), point.getY());
-
-					try {
-						// send reply
-						reply.setContentObject(goToPoint);
-						send(reply);
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-					System.out.println(getLocalName() + " send reply " + msg.getSender().getLocalName());
-				}
-
-			}
-
-			List<Human> humans = new ArrayList<Human>();
-			for (Object obj : grid.getObjects()) {
-				if (obj instanceof Human) {
-					// Humano ainda não saiu e está vivo Segurança espera
-					if (((Human) obj).getAlive() == 1)
-						if (((Human) obj).getKnowExit() == 0)
-							humans.add((Human) obj);
-				}
-			}
+			List<Human> humans = getHumans();
 			// System.out.println("Humans qtd: " + humans.size());
 
-			// Improve security help
+			// Nobody left behind go to exit
 			if (humans.size() == 0 || findNearFire(3)) {
 				moveTowards(myLocation());
 				return;
 			}
-			
-			if (humanPoint != null && (getLocation().getX() == humanPoint.getX() && getLocation().getY() == humanPoint.getY())) {
-				humanPoint = null;
-			}
-
-			if (humans.size() < 5 && humanPoint == null && fireAlert==1) {
-				// TODO
-				int move_index = RandomHelper.nextIntFromTo(0, humans.size() - 1);
-				humanPoint = humans.get(move_index).myLocation();
-			}
-
-			if (humanPoint != null)
-				moveToPoint(humanPoint);
+			// #############################
 
 		}
 
@@ -388,22 +345,31 @@ public class Security extends Agent {
 
 		for (GridCell<Fire> fire : nghPoints) {
 			if (fire.size() > 0) {
-				fireAlert=1;
-				// Create repeated Fire alert behaviour
-				// Current Tick
-				double start = RunEnvironment.getInstance().getCurrentSchedule().getTickCount();
-				double startAt = start + 5;
-				// System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());
-				ISchedule schedule = RunEnvironment.getInstance().getCurrentSchedule();
-				ScheduleParameters scheduleParams = ScheduleParameters.createRepeating(startAt, 5.0);
-				schedule.schedule(scheduleParams, this, "repeatAlert");
+				if (fireAlert == 0) {
+					fireAlert = 1;
+					// Create repeated Fire alert behaviour
+					// Current Tick
+					double start = RunEnvironment.getInstance().getCurrentSchedule().getTickCount();
+					double startAt = start + 5;
+					// System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());
+					ISchedule schedule = RunEnvironment.getInstance().getCurrentSchedule();
+					ScheduleParameters scheduleParams = ScheduleParameters.createRepeating(startAt, 5.0);
+					schedule.schedule(scheduleParams, this, "repeatAlert");
+					// Improve security help
+					// Current Tick
+					System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());
+					ISchedule nschedule = RunEnvironment.getInstance().getCurrentSchedule();
+					ScheduleParameters nscheduleParams = ScheduleParameters.createRepeating(startAt, 6.0);
+					nschedule.schedule(nscheduleParams, this, "GoHelpHuman");
+				}
+
 				return true;
 			}
 		}
-		
+
 		return false;
 	}
-	
+
 	public void repeatAlert() {
 		System.out.println("Security Execute repeatAlert");
 		if (exitAlive == 0) {
@@ -432,6 +398,21 @@ public class Security extends Agent {
 		}
 	}
 
+	public void GoHelpHuman() {
+
+		List<Human> humans = getHumans();
+
+		if (humanPoint != null && (getLocation().getX() == humanPoint.getX() && getLocation().getY() == humanPoint.getY())) {
+			humanPoint = null;
+		}
+		if (humans.size() < 5 && humanPoint == null && fireAlert == 1) {
+			int move_index = RandomHelper.nextIntFromTo(0, humans.size() - 1);
+			humanPoint = humans.get(move_index).myLocation();
+		}
+		if (humanPoint != null)
+			moveToPoint(humanPoint);
+	}
+
 	public GridPoint getLocation() {
 		return grid.getLocation(this);
 	}
@@ -454,6 +435,52 @@ public class Security extends Agent {
 		return false;
 	}
 
+	public ArrayList<AID> findNearAgents(Agent myAgent, int radius) {
+		ArrayList<AID> neighboursList = new ArrayList<AID>();
+
+		GridCellNgh<Human> neighbourhood = new GridCellNgh<Human>(grid, grid.getLocation(myAgent), Human.class, radius, radius);
+		List<GridCell<Human>> nghPoints = neighbourhood.getNeighborhood(false);
+
+		// NOTA: neighbourhood não tem em consideração as parede
+		// e valores opostos na grid
+		// Ex: Grid 40x40
+		// o ponto (0,0) está a 1 de distância do ponto (0,39)
+		for (GridCell<Human> human : nghPoints) {
+			if (human.size() > 0) {
+				Iterable<Human> iterable = human.items();
+				for (Human agent : iterable) {
+					neighboursList.add(agent.getAID());
+				}
+			}
+		}
+
+		GridCellNgh<Security> neighbourSec = new GridCellNgh<Security>(grid, grid.getLocation(myAgent), Security.class, radius, radius);
+		List<GridCell<Security>> nghPointsSec = neighbourSec.getNeighborhood(false);
+		for (GridCell<Security> secure : nghPointsSec) {
+			if (secure.size() > 0) {
+				Iterable<Security> iterable = secure.items();
+				for (Security agent : iterable) {
+					neighboursList.add(agent.getAID());
+				}
+			}
+		}
+
+		return neighboursList;
+	}
+
+	private List<Human> getHumans() {
+		List<Human> humans = new ArrayList<Human>();
+		for (Object obj : grid.getObjects()) {
+			if (obj instanceof Human) {
+				// Humano ainda não saiu e está vivo Segurança espera
+				if (((Human) obj).getAlive() == 1)
+					if (((Human) obj).getKnowExit() == 0)
+						humans.add((Human) obj);
+			}
+		}
+		return humans;
+	}
+	// #######################################
 	/**
 	 * receiveFireAlertBehaviour behaviour
 	 */
@@ -480,7 +507,7 @@ public class Security extends Agent {
 				removeBehaviour(this);
 				return;
 			}
-			
+
 			ACLMessage msg = receive(template);
 			if (msg != null) {
 				if (msg.getContent().indexOf("FIRE") != -1) {
@@ -519,6 +546,13 @@ public class Security extends Agent {
 					ISchedule schedule = RunEnvironment.getInstance().getCurrentSchedule();
 					ScheduleParameters scheduleParams = ScheduleParameters.createRepeating(startAt, 5.0);
 					schedule.schedule(scheduleParams, this, "repeatAlert");
+
+					// Improve security help
+					// Current Tick
+					System.out.println(RunEnvironment.getInstance().getCurrentSchedule().getTickCount());
+					ISchedule nschedule = RunEnvironment.getInstance().getCurrentSchedule();
+					ScheduleParameters nscheduleParams = ScheduleParameters.createRepeating(startAt, 6.0);
+					nschedule.schedule(nscheduleParams, this, "goHelpHuman");
 				}
 			}
 		}
@@ -549,7 +583,23 @@ public class Security extends Agent {
 				send(msg);
 				System.out.println(getLocalName() + " REPEAT fire alert message");
 			}
+		}
 
+		public void goHelpHuman() {
+			List<Human> humans = getHumans();
+
+			if (humans.size() == 0)
+				return;
+			System.out.println(getLocalName() + " go help Human");
+			if (humanPoint != null && (getLocation().getX() == humanPoint.getX() && getLocation().getY() == humanPoint.getY())) {
+				humanPoint = null;
+			}
+			if (humans.size() < 5 && humanPoint == null && fireAlert == 1) {
+				int move_index = RandomHelper.nextIntFromTo(0, humans.size() - 1);
+				humanPoint = humans.get(move_index).myLocation();
+			}
+			if (humanPoint != null)
+				moveToPoint(humanPoint);
 		}
 
 		@Override
@@ -557,39 +607,48 @@ public class Security extends Agent {
 			return alertsend;
 		}
 	}
-	
-	public ArrayList<AID> findNearAgents(Agent myAgent, int radius) {
-		ArrayList<AID> neighboursList = new ArrayList<AID>();
-
-		GridCellNgh<Human> neighbourhood = new GridCellNgh<Human>(grid, grid.getLocation(myAgent), Human.class, radius, radius);
-		List<GridCell<Human>> nghPoints = neighbourhood.getNeighborhood(false);
-
-		// NOTA: neighbourhood não tem em consideração as parede
-		// e valores opostos na grid
-		// Ex: Grid 40x40
-		// o ponto (0,0) está a 1 de distância do ponto (0,39)
-		for (GridCell<Human> human : nghPoints) {
-			if (human.size() > 0) {
-				Iterable<Human> iterable = human.items();
-				for (Human agent : iterable) {
-					neighboursList.add(agent.getAID());
-				}
-			}
-		}
+	// #######################################
+	/**
+	 * Helper behaviour
+	 * Try to get help for the emergency situation
+	 * Try to know where exit is
+	 */
+	class helpBehaviour extends CyclicBehaviour {
+		private static final long serialVersionUID = 1L;
+		private MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.QUERY_REF),
+				MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME));
 		
-		
-		GridCellNgh<Security> neighbourSec = new GridCellNgh<Security>(grid, grid.getLocation(myAgent), Security.class, radius, radius);
-		List<GridCell<Security>> nghPointsSec = neighbourSec.getNeighborhood(false);
-		for (GridCell<Security> secure : nghPointsSec) {
-			if (secure.size() > 0) {
-				Iterable<Security> iterable = secure.items();
-				for (Security agent : iterable) {
-					neighboursList.add(agent.getAID());
-				}
-			}
+		public helpBehaviour(Agent a) {
+			super(a);
 		}
 
-		return neighboursList;
+		@Override
+		public void action() {
+			ACLMessage msg = null;
+			// Allow security answer to more than one human at same time
+			while ((msg = receive(template)) != null) {
+				ACLMessage reply = msg.createReply();
+				String content = msg.getContent();
+				if ((content != null) && (content.indexOf("EXIT") != -1)) {
+					reply.setPerformative(ACLMessage.INFORM);
+					GridPoint point = getNearExit();
+					GoToPoint goToPoint = new GoToPoint(point.getX(), point.getY());
+
+					try {
+						// send reply
+						reply.setContentObject(goToPoint);
+						send(reply);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					System.out.println(getLocalName() + " send reply " + msg.getSender().getLocalName());
+				}
+
+			}
+			
+		}
+		
 	}
+	// #######################################
 
 }

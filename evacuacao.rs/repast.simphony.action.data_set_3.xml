@@ -16,7 +16,7 @@
   <atEnd>false</atEnd>
   <methodDataSources class="linked-hash-map">
     <entry>
-      <string>Human Fire Detect</string>
+      <string>Human Fire Detected</string>
       <repast.simphony.data2.engine.MethodDataSourceDefinition>
         <id>Human Fire Detect</id>
         <className>evacuacao.Human</className>

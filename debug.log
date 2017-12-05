@@ -615,3 +615,36 @@ java.lang.NullPointerException
 	at repast.simphony.engine.schedule.Schedule.execute(Schedule.java:352)
 	at repast.simphony.ui.GUIScheduleRunner$ScheduleLoopRunnable.run(GUIScheduleRunner.java:52)
 	at java.lang.Thread.run(Unknown Source)
+FATAL [Thread-7] 2017-12-04 19:19:11,118 repast.simphony.ui.GUIScheduleRunner - RunTimeException when running the schedule
+Current tick (68.0)
+java.lang.NullPointerException
+	at evacuacao.Human$injuredHandler.action(Human.java:1279)
+	at sajas.core.behaviours.Behaviour.actionWrapper(Behaviour.java:341)
+	at sajas.core.Agent.step(Agent.java:205)
+	at sajas.sim.repasts.AgentAction.execute(AgentAction.java:69)
+	at repast.simphony.engine.schedule.DefaultAction.execute(DefaultAction.java:38)
+	at repast.simphony.engine.schedule.ScheduleGroup.executeList(ScheduleGroup.java:205)
+	at repast.simphony.engine.schedule.ScheduleGroup.execute(ScheduleGroup.java:231)
+	at repast.simphony.engine.schedule.Schedule.execute(Schedule.java:352)
+	at repast.simphony.ui.GUIScheduleRunner$ScheduleLoopRunnable.run(GUIScheduleRunner.java:52)
+	at java.lang.Thread.run(Unknown Source)
+FATAL [Thread-7] 2017-12-05 12:41:48,734 repast.simphony.ui.GUIScheduleRunner - RunTimeException when running the schedule
+Current tick (80.0)
+java.lang.RuntimeException: java.lang.reflect.InvocationTargetException
+	at repast.simphony.engine.schedule.CallBackAction.execute(CallBackAction.java:129)
+	at repast.simphony.engine.schedule.DefaultAction.execute(DefaultAction.java:38)
+	at repast.simphony.engine.schedule.ScheduleGroup.executeList(ScheduleGroup.java:205)
+	at repast.simphony.engine.schedule.ScheduleGroup.execute(ScheduleGroup.java:231)
+	at repast.simphony.engine.schedule.Schedule.execute(Schedule.java:352)
+	at repast.simphony.ui.GUIScheduleRunner$ScheduleLoopRunnable.run(GUIScheduleRunner.java:52)
+	at java.lang.Thread.run(Unknown Source)
+Caused by: java.lang.reflect.InvocationTargetException
+	at evacuacao.Security$receiveFireAlertBehaviour$$FastClassByCGLIB$$5a1bd4f2.invoke(<generated>)
+	at net.sf.cglib.reflect.FastMethod.invoke(FastMethod.java:53)
+	at repast.simphony.engine.schedule.CallBackAction.execute(CallBackAction.java:127)
+	... 6 more
+Caused by: java.lang.IndexOutOfBoundsException: Index: 0, Size: 0
+	at java.util.ArrayList.rangeCheck(Unknown Source)
+	at java.util.ArrayList.get(Unknown Source)
+	at evacuacao.Security$receiveFireAlertBehaviour.goHelpHuman(Security.java:574)
+	... 9 more
