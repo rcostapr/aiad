@@ -36,6 +36,15 @@ public class Human extends Agent {
 	private Grid<Object> grid;
 	private Context<Object> context;;
 	private Condition condition;
+
+	public Condition getCondition() {
+		return condition;
+	}
+
+	public void setCondition(Condition condition) {
+		this.condition = condition;
+	}
+
 	private float altruist;
 
 	private int visionRadius;
@@ -57,11 +66,14 @@ public class Human extends Agent {
 	private int saveHumansCount = 0;
 
 	boolean handlingHelpRequest = false;
+
 	private Human humanToCarry = null;
 	private boolean gothumanToCarry = false;
 
 	private Human humanToCarryMe = null;
-	private boolean gothumanToCarryMe = false;
+
+	private Security followSecurity = null;
+	private int fire_radius;
 
 	protected Codec codec;
 	protected Ontology serviceOntology;
@@ -69,10 +81,62 @@ public class Human extends Agent {
 	public static final String FIRE_MESSAGE = "FIRE FIRE Run to exit!?!??!";
 	public static final String SECURITY_MESSAGE = "TELL ME WHERE IS THE EXIT DOOR...";
 	public static final String INJURED_MESSAGE = "Can you carry me out?...";
+	public static final String RESCUE_MESSAGE = "I will rescue you!";
 
 	public static final String UNKNOWN = "Unknown Message";
 	public static final String HANDLE_HELP_REQUEST = "Already Handle a help request. Sorry?!?!?";
-	public static final String INJURY_MESSAGE = null;
+
+	public boolean isHandlingHelpRequest() {
+		return handlingHelpRequest;
+	}
+
+	public void setHandlingHelpRequest(boolean handlingHelpRequest) {
+		this.handlingHelpRequest = handlingHelpRequest;
+	}
+
+	public int getSaved() {
+		if (condition == Condition.saved)
+			return 1;
+		return 0;
+	}
+
+	public int getInjured() {
+		if (condition == Condition.injured)
+			return 1;
+		return 0;
+	}
+
+	public Human getHumanToCarryMe() {
+		return humanToCarryMe;
+	}
+
+	public void setHumanToCarryMe(Human humanToCarryMe) {
+		this.humanToCarryMe = humanToCarryMe;
+	}
+
+	public float getAltruist() {
+		return altruist;
+	}
+
+	public void setAltruist(float altruist) {
+		this.altruist = altruist;
+	}
+
+	public int getExitX() {
+		return exitX;
+	}
+
+	public void setExitX(int exitX) {
+		this.exitX = exitX;
+	}
+
+	public int getExitY() {
+		return exitY;
+	}
+
+	public void setExitY(int exitY) {
+		this.exitY = exitY;
+	}
 
 	public int getSaveHumansCount() {
 		return saveHumansCount;
@@ -84,6 +148,10 @@ public class Human extends Agent {
 
 	public int getWasHelped() {
 		return wasHelped;
+	}
+
+	public Human getHuman() {
+		return this;
 	}
 
 	public void setWasHelped(int wasHelped) {
@@ -635,8 +703,8 @@ public class Human extends Agent {
 
 	@Override
 	public void setup() {
-		// TODO get Scene Builder Parameters
 		SceneBuilder scene = (SceneBuilder) context.getObjects(SceneBuilder.class).get(0);
+		this.fire_radius = scene.getFire_radius();
 
 		// register language and ontology
 		codec = new SLCodec();
@@ -658,28 +726,30 @@ public class Human extends Agent {
 
 	@Override
 	protected void takeDown() {
-		List<Security> people = new ArrayList<Security>();
-		for (Object obj : grid.getObjects()) {
-			if (obj instanceof Security) {
-				// Ainda não saiu e está vivo
-				if (((Security) obj).getExitAlive() == 0 && ((Security) obj).getAlive() == 1)
-					people.add((Security) obj);
-			}
-		}
-		List<Human> humans = new ArrayList<Human>();
-		for (Object obj : grid.getObjects()) {
-			if (obj instanceof Human) {
-				// Humano ainda não saiu e está vivo Segurança espera
-				if (((Human) obj).getExitAlive() == 0 && ((Human) obj).getAlive() == 1)
-					humans.add((Human) obj);
-			}
-		}
-
-		if ((people.size() + humans.size()) == 0) {
-			System.out.println("#########   Animation END  #########");
-			RunEnvironment.getInstance().endRun();
-		}
-		System.out.println("Human takeDown");
+		/*
+		 * List<Security> people = new ArrayList<Security>();
+		 * for (Object obj : grid.getObjects()) {
+		 * if (obj instanceof Security) {
+		 * // Ainda não saiu e está vivo
+		 * if (((Security) obj).getExitAlive() == 0 && ((Security) obj).getAlive() == 1)
+		 * people.add((Security) obj);
+		 * }
+		 * }
+		 * List<Human> humans = new ArrayList<Human>();
+		 * for (Object obj : grid.getObjects()) {
+		 * if (obj instanceof Human) {
+		 * // Humano ainda não saiu e está vivo Segurança espera
+		 * if (((Human) obj).getExitAlive() == 0 && ((Human) obj).getAlive() == 1)
+		 * humans.add((Human) obj);
+		 * }
+		 * }
+		 * 
+		 * if ((people.size() + humans.size()) == 0) {
+		 * System.out.println("#########   Animation END  #########");
+		 * RunEnvironment.getInstance().endRun();
+		 * }
+		 */
+		System.out.println(getLocalName() + " takeDown");
 	}
 
 	/**
@@ -705,20 +775,21 @@ public class Human extends Agent {
 			}
 			// FIRE DETECTIONS
 			System.out.println("Execute fireDetectedBehaviour");
-			Parameters params = RunEnvironment.getInstance().getParameters();
-			ArrayList<Fire> fireList = findNearFire((Integer) params.getValue("fire_radius"));
+			ArrayList<Fire> fireList = findNearFire(fire_radius);
 
 			if (fireList.size() > 0) {
 
 				// injured
 				for (int i = 0; i < fireList.size(); i++) {
-					if (getDistBetween(myLocation(), fireList.get(i).getLocation()) == 1)
+					if (getDistBetween(myLocation(), fireList.get(i).getLocation()) == 1) {
 						condition = Condition.injured;
+						System.out.println(getLocalName() + " is injured at: " + myLocation().getX() + " " + myLocation().getY() + " condition: " + condition);
+					}
 				}
 
 				fireAlert = 1;
 
-				System.out.print(this.getAgent().getLocalName() + " Found Fire");
+				System.out.print(getLocalName() + " Found Fire");
 				for (Fire myFire : fireList)
 					System.out.print(" at:" + myFire.getLocation().getX() + " " + myFire.getLocation().getY());
 
@@ -768,7 +839,10 @@ public class Human extends Agent {
 		}
 
 		public void repeatAlert() {
-			System.out.println("Execute repeatAlert");
+			if (getHumans().size() == 0) {
+				removeBehaviour(this);
+			}
+			System.out.println(getLocalName() + " Execute repeatAlert");
 			if (exitAlive == 0) {
 				// find people in the surrounding area
 				ArrayList<AID> humanNear = findNearAgents(myAgent, visionRadius);
@@ -876,6 +950,9 @@ public class Human extends Agent {
 		}
 
 		public void repeatAlert() {
+			if (getHumans().size() == 0) {
+				removeBehaviour(this);
+			}
 			System.out.println("Execute repeatAlert");
 			if (exitAlive == 0) {
 				System.out.println(getLocalName() + " Repeat Fire Alert.");
@@ -932,41 +1009,55 @@ public class Human extends Agent {
 				removeBehaviour(this);
 			System.out.println("Execute HelpBehaviour");
 
+			if (condition == Condition.injured) {
+				// if injured cant help anyone
+				removeBehaviour(this);
+				System.out.println(getLocalName() + " is injured remove HelpBehaviour");
+				return;
+			}
+
 			// ##########################################################
-			// I can only help if i know where exit is
+			// I can only help if i know where exit
 			if (knowExit == 1) {
 				// Handle a request for help
-				ACLMessage myMsg = receive(template);
-				// already help someone
-				if (handlingHelpRequest) {
-					if (myMsg != null) {
-						ACLMessage reply = myMsg.createReply();
-						if (HELP_MESSAGE.equals(myMsg.getContent())) {
-							reply.setPerformative(ACLMessage.INFORM);
-							reply.setContent(HANDLE_HELP_REQUEST);
-						} else if (INJURED_MESSAGE.equals(myMsg.getContent())) {
-							reply.setPerformative(ACLMessage.INFORM);
-							reply.setContent(HANDLE_HELP_REQUEST);
-						} else {
-							reply.setPerformative(ACLMessage.NOT_UNDERSTOOD);
-							reply.setContent(UNKNOWN);
+				ACLMessage myMsg = null;
+				while ((myMsg = receive(template)) != null) {
+					// already help someone
+					if (handlingHelpRequest) {
+						if (myMsg != null) {
+							ACLMessage reply = myMsg.createReply();
+							if (HELP_MESSAGE.equals(myMsg.getContent())) {
+								reply.setPerformative(ACLMessage.INFORM);
+								reply.setContent(HANDLE_HELP_REQUEST);
+							} else if (INJURED_MESSAGE.equals(myMsg.getContent())) {
+								reply.setPerformative(ACLMessage.INFORM);
+								reply.setContent(HANDLE_HELP_REQUEST);
+							} else {
+								reply.setPerformative(ACLMessage.NOT_UNDERSTOOD);
+								reply.setContent(UNKNOWN);
+							}
+							System.out.println(
+									getLocalName() + " Received Request message from " + myMsg.getSender().getLocalName() + " reply " + reply.getContent());
+							send(reply);
+							return;
 						}
-						System.out.println("Received Request message from agent " + myMsg.getSender().getName() + " reply " + reply.getContent());
-						send(reply);
-						return;
+					} else {
+						// Not help anyone. Help if altruist.
+						// If receive any msg go help
+						if (myMsg != null) {
+							System.out.println(getLocalName() + " Received Request help from " + myMsg.getSender().getLocalName() + ": " + myMsg.getContent());
+							if (myMsg.getPerformative() == ACLMessage.QUERY_IF) {
+								// Receive a QUERY_IF
+								handleHelpRequest(myMsg);
+							}
 
-					}
-				} else {
-					// Not help anyone. Help if altruist.
-					// If receive any msg go help
-					if (myMsg != null) {
-						if (myMsg.getPerformative() == ACLMessage.QUERY_IF) {
-							// Receive a QUERY_IF
-							handleHelpRequest(myMsg);
 						}
-
 					}
 				}
+			} else {
+				// Not know where Exit Door is
+				// TODO CREATE A MSG TO INFORM
+
 			}
 			// ##############################################
 
@@ -986,7 +1077,7 @@ public class Human extends Agent {
 						Human human = (Human) listNearHuman.get(i);
 						msgSend.addReceiver(human.getAID());
 					}
-					System.out.println(" send help request.");
+					System.out.println(" send help request for exit");
 					// Message Content
 					msgSend.setContent(HELP_MESSAGE);
 					msgSend.setLanguage(codec.getName());
@@ -1004,60 +1095,51 @@ public class Human extends Agent {
 			if (altruist == 0 || getAlive() == 0)
 				return;
 
-			final MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.QUERY_IF),
-					MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME));
+			if (knowExit == 1 && altruist > 0) {
+				ACLMessage reply = request.createReply();
+				String content = request.getContent();
+				if ((content != null) && (content.indexOf("EXIT") != -1)) {
+					// if was send a request for exit info
+					reply.setPerformative(ACLMessage.INFORM);
+					GoToPoint goToPoint = new GoToPoint(exitX, exitY);
 
-			ACLMessage msg = receive(template);
-			// TODO implement Altruism and injured
-			if (msg != null) {
-				if (knowExit == 1 && altruist > 0) {
-					ACLMessage reply = msg.createReply();
-					String content = msg.getContent();
-					if ((content != null) && (content.indexOf("EXIT") != -1)) {
-						// if was send a request for exit info
-						reply.setPerformative(ACLMessage.INFORM);
-						GoToPoint goToPoint = new GoToPoint(exitX, exitY);
-
-						try {
-							// send reply
-							reply.setContentObject(goToPoint);
-							send(reply);
-							System.out
-									.println(getLocalName() + " send help reply " + msg.getSender().getLocalName() + " go to EXIT at: " + exitX + "," + exitY);
-							helpHumansCount = 1;
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
+					try {
+						// send reply
+						reply.setContentObject(goToPoint);
+						send(reply);
+						System.out
+								.println(getLocalName() + " send help reply " + request.getSender().getLocalName() + " go to EXIT at: " + exitX + "," + exitY);
+						helpHumansCount = 1;
+					} catch (IOException e) {
+						e.printStackTrace();
 					}
-
-					// TODO implement Save Human
-					if (altruist > 1) {
-						if ((content != null) && (content.equals(INJURED_MESSAGE))) {
-							// if was send a request for save rescue
-							reply.setPerformative(ACLMessage.INFORM);
-							try {
-								// send reply
-								reply.setContentObject(this);
-								send(reply);
-								saveHumansCount = 1;
-								handlingHelpRequest = true;
-
-								// Store the human to save
-								humanToCarry = ((Human) findAgent(msg.getSender()));
-								GridPoint humanPoint = humanToCarry.myLocation();
-								System.out.println(getLocalName() + " send save reply " + msg.getSender().getLocalName() + " at: " + humanPoint.getX() + ","
-										+ humanPoint.getY() + " will help");
-
-							} catch (IOException e) {
-								e.printStackTrace();
-							}
-
-						}
-					}
-
-				} else {
-					System.out.println(getLocalName() + " can't help " + msg.getSender().getLocalName());
 				}
+
+				if (altruist > 1) {
+					System.out.println("======> " + getLocalName() + " receive help request: " + content + " from " + request.getSender().getLocalName());
+					if ((content != null) && (content.equals(INJURED_MESSAGE))) {
+						// if was send a request for save rescue
+
+						// send reply
+						reply.setPerformative(ACLMessage.INFORM);
+						reply.setContent(RESCUE_MESSAGE);
+						send(reply);
+						saveHumansCount = 1;
+						handlingHelpRequest = true;
+
+						// Store the human to save
+						humanToCarry = ((Human) findAgent(request.getSender()));
+						GridPoint humanPoint = humanToCarry.myLocation();
+						System.out.println("======> Go rescue " + request.getSender().getLocalName() + " " + getLocalName() + " send save reply "
+								+ request.getSender().getLocalName() + " at: " + humanPoint.getX() + "," + humanPoint.getY() + " will help");
+					}
+				} else {
+					// not altruist enough
+					System.out.println(getLocalName() + " can't help " + request.getSender().getLocalName() + " not altruist enough");
+				}
+
+			} else {
+				System.out.println(getLocalName() + " can't help " + request.getSender().getLocalName());
 			}
 
 		}
@@ -1079,11 +1161,14 @@ public class Human extends Agent {
 				System.out.println("Human " + getLocalName() + " done");
 				return;
 			}
-			
+
 			// If there is no Fire Nothing to do
-			if(fireAlert == 0){
+			if (fireAlert == 0) {
 				moveToExplore(myLocation());
 				return;
+			}
+			if (knowExit == 1 & !validPath(new GridPoint(exitX, exitY))) {
+				knowExit = 0;
 			}
 
 			// Try to Receive Information from Help Request
@@ -1091,15 +1176,64 @@ public class Human extends Agent {
 			// Receive goToPoint or HumanToCarryMe Information
 			// Decide if know security
 			handleHelpInform();
+			checkNearFire();
 
 			if (condition == Condition.healthy) {
+
+				if (handlingHelpRequest) {
+					System.out.print(getLocalName() + " try to handlingHelpRequest -> ");
+					// Check if is on human to carry place
+					if (humanToCarry.myLocation().getX() == myLocation().getX() && humanToCarry.myLocation().getY() == myLocation().getY()) {
+						gothumanToCarry = true;
+						System.out.print("is on human to carry place ");
+					}
+				}
+
+				if (handlingHelpRequest) {
+					// Check if human to save accept my rescue reply
+					System.out.print("Check if human to save (" + humanToCarry.getLocalName() + ") accept my rescue reply -> ");
+					if (humanToCarry.getHumanToCarryMe() != null) {
+						if (humanToCarry.getHumanToCarryMe().getAID() == myAgent.getAID() && humanToCarry.getAlive() == 1) {
+							System.out.print("yes he choose me ");
+							if (!gothumanToCarry) {
+								System.out.print(" moving to humanToCarry place");
+								moveToPoint(humanToCarry.myLocation());
+								return;
+							} else {
+								System.out.print(" gothumanToCarry moving exit");
+							}
+						} else {
+							// Not Choose Me
+							handlingHelpRequest = false;
+							humanToCarry = null;
+							gothumanToCarry = false;
+							System.out.print("no he choose other one ");
+						}
+					} else {
+						System.out.print("humanToCarry not defined who's gonna save him ?!?! ");
+					}
+				}
+				System.out.println("");
+
 				if (knowExit == 1) {
+					System.out.println("Human " + getLocalName() + " condition " + condition + " move to exit");
 					moveToPoint(new GridPoint(exitX, exitY));
 					return;
 				}
 				if (knowSecurity == 1) {
 					moveToPoint((new GridPoint(securityX, securityY)));
+					System.out.println("Human " + getLocalName() + " condition " + condition + " move to security");
 					return;
+				}
+			}
+
+			// I'm outside exitRomsPoint
+			if (myLocation().getX() >= 20 && fireAlert == 1) {
+				moveToExplore(myLocation());
+				// If injured i stay here waiting for help
+				if (condition == Condition.injured) {
+					removeBehaviour(this);
+					addBehaviour(new injuredHandler(myAgent));
 				}
 			}
 
@@ -1156,7 +1290,6 @@ public class Human extends Agent {
 			}
 			// ###########################################################
 
-			
 			// ###########################################################
 			// Decide which rooms exit is closer
 			// State knowExit = 0 && knowSecurity = 0 && fireAlert = 1
@@ -1208,13 +1341,19 @@ public class Human extends Agent {
 				}
 			}
 
-			// I'm outside exitRomsPoint
-			if (myLocation().getX() >= 20 && fireAlert == 1) {
-				moveToExplore(myLocation());
-				// If injured i stay here waiting for help
-				if (condition == Condition.injured) {
-					removeBehaviour(this);
-					addBehaviour(new injuredHandler(myAgent));
+		}
+
+		private void checkNearFire() {
+			ArrayList<Fire> fireList = findNearFire(fire_radius);
+
+			if (fireList.size() > 0) {
+
+				// injured
+				for (int i = 0; i < fireList.size(); i++) {
+					if (getDistBetween(myLocation(), fireList.get(i).getLocation()) == 1) {
+						condition = Condition.injured;
+						System.out.println(getLocalName() + " is injured at: " + myLocation().getX() + " " + myLocation().getY() + " condition: " + condition);
+					}
 				}
 			}
 
@@ -1229,10 +1368,8 @@ public class Human extends Agent {
 			while ((msg = receive(template)) != null) {
 				GoToPoint goToPoint;
 				try {
-					if ((goToPoint = (GoToPoint) msg.getContentObject()) == null)
-						humanToCarryMe = (Human) msg.getContentObject();
-					if (goToPoint != null) {
-
+					if (((GoToPoint) msg.getContentObject()).getClass() == GoToPoint.class) {
+						goToPoint = (GoToPoint) msg.getContentObject();
 						// Se for necessário saber a localização do segurança
 						// Security security = findAgent(msg.getSender());
 
@@ -1244,17 +1381,11 @@ public class Human extends Agent {
 						if (msg.getSender().getLocalName().indexOf("person") != -1) {
 							wasHelped = 1;
 						}
-					} else if (humanToCarryMe != null) {
-						// TODO receive save help from other human
-						System.out.println(getLocalName() + " receive save info at: " + humanToCarryMe.myLocation().getX() + ","
-								+ humanToCarryMe.myLocation().getY() + " from  " + msg.getSender().getLocalName());
-						gothumanToCarryMe = true;
-
 					} else {
-						System.out.println(getLocalName() + " receive msg " + msg.getContent() + " from " + msg.getSender().getLocalName());
+
 					}
 				} catch (UnreadableException e) {
-					e.printStackTrace();
+					System.out.println(getLocalName() + " ##### receive ######> " + msg.getContent() + " from " + msg.getSender().getLocalName());
 				}
 
 			}
@@ -1315,53 +1446,211 @@ public class Human extends Agent {
 
 		public void action() {
 			if (done()) {
-				System.out.println("Human " + getLocalName() + " done");
+				System.out.println("Human injured " + getLocalName() + " done");
 				return;
 			}
-			// TODO injured behaviour
 
-			if (condition == Condition.injured && humanToCarryMe.myLocation().getX() == myLocation().getX()
-					&& humanToCarryMe.myLocation().getY() == myLocation().getY()) {
-				// Help arrived follow the human helper
-				condition = Condition.saved;
+			if (getHumans().size() == 0) {
+				System.out.println("====" + getHumans().size() + "==== " + getLocalName() + " No one left to help.");
+				addBehaviour(new desperadoHandler(myAgent));
+				removeBehaviour(this);
 			}
 
+			System.out.println(getLocalName() + " Execute injuredHandler.");
+
+			// Try to receive reply to help injured request
+			handleHelpInform();
+
+			if (humanToCarryMe != null)
+				if (humanToCarryMe.getAlive() == 0) {
+					humanToCarryMe = null;
+					wasHelped = 0;
+				}
+
+			if (wasHelped == 1 && humanToCarryMe != null)
+				if (condition == Condition.injured && humanToCarryMe.myLocation().getX() == myLocation().getX()
+						&& humanToCarryMe.myLocation().getY() == myLocation().getY()) {
+					// Help arrived follow the human helper
+					condition = Condition.saved;
+				}
+
 			if (condition == Condition.saved) {
+				System.out.println(getLocalName() + " follow human who is carry me");
 				moveToPoint(humanToCarryMe.myLocation());
 			}
 			if (wasHelped == 0) {
-				// I'm injuerd need help. Send help request.
+				// I'm injured need help. Send help request.
 				ArrayList<Human> listNearHuman = findNearHuman(getAgent(), visionRadius);
 				if (!listNearHuman.isEmpty()) {
 
 					// SEND MESSAGE TO ALL Human in that place
 					ACLMessage msgSend = new ACLMessage(ACLMessage.QUERY_IF);
 
-					System.out.print(getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " visionRadius " + visionRadius + " Found Human");
+					System.out.print(getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " is injured send request ");
 
 					// Define who's gone receive the message
 					for (int i = 0; i < listNearHuman.size(); i++) {
-						System.out.print(" at position:" + listNearHuman.get(i).myLocation().getX() + "," + listNearHuman.get(i).myLocation().getY());
+						System.out.print(listNearHuman.get(i).getLocalName() + " at position:" + listNearHuman.get(i).myLocation().getX() + ","
+								+ listNearHuman.get(i).myLocation().getY() + " altruist: " + listNearHuman.get(i).getAltruist() + " ");
 						Human human = (Human) listNearHuman.get(i);
 						msgSend.addReceiver(human.getAID());
 					}
-					System.out.println(" send Save ME request.");
+
 					// Message Content
-					msgSend.setContent(INJURY_MESSAGE);
+					msgSend.setContent(INJURED_MESSAGE);
 					msgSend.setLanguage(codec.getName());
 					msgSend.setOntology(serviceOntology.getName());
-
 					// Send message
 					send(msgSend);
+					System.out.println(" " + msgSend.getContent());
 				}
+			} else {
+				// Already got a Human to carry me
+				if (condition == Condition.injured) {
+					// Do Nothing
+					// Need that the Human to get to my place
+					if (humanToCarryMe != null)
+						if (humanToCarryMe.getAlive() == 1)
+							System.out.println(getLocalName() + " waiting for the arrive of " + humanToCarryMe.getLocalName());
+						else {
+							humanToCarryMe = null;
+							wasHelped = 0;
+						}
+				}
+
+			}
+
+		}
+
+		private void handleHelpInform() {
+
+			final MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.INFORM),
+					MessageTemplate.MatchOntology(ServiceOntology.ONTOLOGY_NAME));
+
+			ACLMessage msg = null;
+			while ((msg = receive(template)) != null) {
+
+				if (msg.getContent().equals(RESCUE_MESSAGE)) {
+					if (humanToCarryMe == null) {
+						System.out.println("------> " + getLocalName() + " receive a rescue message from " + msg.getSender().getLocalName());
+						// Store the human to save
+						humanToCarryMe = ((Human) findAgent(msg.getSender()));
+						GridPoint humanPoint = humanToCarryMe.myLocation();
+						System.out.println(getLocalName() + " accept rescue reply " + humanToCarryMe.getLocalName() + " at: " + humanPoint.getX() + ","
+								+ humanPoint.getY() + " will rescue");
+						knowExit = 1;
+						exitX = humanToCarryMe.getExitX();
+						exitY = humanToCarryMe.getExitY();
+						wasHelped = 1;
+					}
+				} else {
+					// receive Other type of message
+					System.out.println("---> " + getLocalName() + " receive message from " + msg.getSender().getLocalName() + " :" + msg.getContent());
+				}
+
 			}
 
 		}
 
 		@Override
 		public boolean done() {
+			// ##################################
+			if (checkFireAtLocation(myLocation().getX(), myLocation().getY())) {
+				alive = 0;
+				System.out.println(getLocalName() + " injured Die........");
+				takeDown();
+				return true;
+			}
+
+			if (checkDoorAtLocation(myLocation().getX(), myLocation().getY())) {
+				System.out.println(getLocalName() + " injured Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
+				exitAlive = 1;
+				takeDown();
+				return true;
+			}
 			return false;
 		}
+	}
+
+	class desperadoHandler extends SimpleBehaviour {
+
+		private static final long serialVersionUID = 1L;
+
+		public desperadoHandler(Agent a) {
+			super(a);
+			wasHelped = 0;
+		}
+
+		public void action() {
+			if (done()) {
+				System.out.println("Human desperado " + getLocalName() + " done");
+				return;
+			}
+
+			System.out.println(getLocalName() + " Execute desperadoHandler.");
+
+			if (wasHelped == 0) {
+				// TODO checkSecurityAtLocation
+				List<Object> securities = checkSecurityAtLocation(myLocation().getX(), myLocation().getY());
+				if (securities.size() > 0) {
+					// Try to get a security to carry me
+					for (int i = 0; i < securities.size(); i++) {
+						Security security = (Security) securities.get(i);
+						// Lock the first one available
+						if (security.isHelphuman() == false) {
+							wasHelped = 1;
+							condition = Condition.saved;
+							security.setHelphuman(true);
+							followSecurity = security;
+							System.out.println(getLocalName() + " found a security to rescue " + security.getLocalName());
+						}
+					}
+				}
+
+			} else {
+				// Already got a Security to carry me
+				// Follow Security
+				System.out.println(getLocalName() + " follow a security to rescue " + followSecurity.getLocalName());
+				if (followSecurity != null) {
+					if (followSecurity.getAlive() == 1)
+						moveToPoint(followSecurity.getLocation());
+				}
+
+			}
+
+		}
+
+		@Override
+		public boolean done() {
+			// ##################################
+			if (checkFireAtLocation(myLocation().getX(), myLocation().getY())) {
+				alive = 0;
+				System.out.println(getLocalName() + " injured Die........");
+				takeDown();
+				return true;
+			}
+
+			if (checkDoorAtLocation(myLocation().getX(), myLocation().getY())) {
+				System.out.println(getLocalName() + " injured Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
+				exitAlive = 1;
+				takeDown();
+				return true;
+			}
+			return false;
+		}
+	}
+
+	private List<Human> getHumans() {
+		List<Human> humans = new ArrayList<Human>();
+		for (Object obj : grid.getObjects()) {
+			if (obj instanceof Human) {
+				// Humano ainda vivo e de boa saúde e não está a ajudar ninguém e ainda não saiu
+				if (((Human) obj).getAlive() == 1 && ((Human) obj).condition == Condition.healthy && !((Human) obj).isHandlingHelpRequest()
+						&& ((Human) obj).getExitAlive() == 0)
+					humans.add((Human) obj);
+			}
+		}
+		return humans;
 	}
 
 }

@@ -46,7 +46,7 @@ public class JEvacuationBuilder extends RepastSLauncher {
 			myScene.setAgentContainer(agentContainer);
 			myScene.createHumans();
 			myScene.createSecurity();
-			
+
 		}
 		System.out.println("launchAgents END");
 		System.out.println("Schedule Fire");
@@ -55,9 +55,9 @@ public class JEvacuationBuilder extends RepastSLauncher {
 
 	@Override
 	public Context<?> build(Context<Object> context) {
-		
+		clearScreen();
 		System.out.println("context start");
-		
+
 		myScene = new SceneBuilder(context);
 
 		// Create agent interaction network
@@ -66,6 +66,11 @@ public class JEvacuationBuilder extends RepastSLauncher {
 
 		System.out.println("context end");
 		return super.build(context);
+	}
+
+	public static void clearScreen() {
+		for (int i = 0; i < 200; i++)
+			System.out.println("");
 	}
 
 }

@@ -1,9 +1,9 @@
 <repast.simphony.chart2.engine.TimeSeriesChartDescriptor>
-  <name>Humans Send Help Info Chart</name>
-  <dataSet>Humans Send Help Info</dataSet>
+  <name>Human Know Exit Chart</name>
+  <dataSet>Humans Know Exit</dataSet>
   <xAxisLabel>Tick Count</xAxisLabel>
   <yAxisLabel>Humans Count</yAxisLabel>
-  <chartTitle>Humans Send Help Info</chartTitle>
+  <chartTitle>Humans Know Exit</chartTitle>
   <type>TIME_SERIES</type>
   <background>
     <red>192</red>
@@ -21,13 +21,13 @@
   <showLegend>true</showLegend>
   <seriesIds>
     <entry>
-      <string>Humans Send Help</string>
+      <string>Know Exit</string>
       <SeriesData>
-        <label>Humans Send Help</label>
+        <label>Know Exit</label>
         <color>
-          <red>0</red>
-          <green>153</green>
-          <blue>204</blue>
+          <red>102</red>
+          <green>102</green>
+          <blue>0</blue>
           <alpha>255</alpha>
         </color>
       </SeriesData>
