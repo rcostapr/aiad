@@ -36,7 +36,6 @@ public class JEvacuationBuilder extends RepastSLauncher {
 		} else {
 			agentContainer = mainContainer;
 		}
-
 		launchAgents();
 	}
 
@@ -46,7 +45,6 @@ public class JEvacuationBuilder extends RepastSLauncher {
 			myScene.setAgentContainer(agentContainer);
 			myScene.createHumans();
 			myScene.createSecurity();
-
 		}
 		System.out.println("launchAgents END");
 		System.out.println("Schedule Fire");
@@ -72,5 +70,4 @@ public class JEvacuationBuilder extends RepastSLauncher {
 		for (int i = 0; i < 200; i++)
 			System.out.println("");
 	}
-
 }

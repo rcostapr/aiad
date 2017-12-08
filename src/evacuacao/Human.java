@@ -1315,7 +1315,6 @@ public class Human extends Agent {
 							System.out.println(getLocalName() + " is trapped in the fire.");
 						}
 					}
-
 				} else {
 					// Choose Bottom Exit more close
 					if (validPath(exitRomsPointBottom)) {
