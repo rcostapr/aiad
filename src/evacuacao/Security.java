@@ -547,7 +547,7 @@ public class Security extends Agent {
 			if (obj instanceof Human) {
 				// Humano ainda não saiu e está vivo ou aleijado Segurança espera
 				if (((Human) obj).getAlive() == 1)
-					if (((Human) obj).getKnowExit() == 0 && ((Human) obj).getCondition() == Condition.injured)
+					if (((Human) obj).getKnowExit() == 0 || ((Human) obj).getCondition() == Condition.injured)
 						humans.add((Human) obj);
 			}
 		}
@@ -668,7 +668,7 @@ public class Security extends Agent {
 			if (humanPoint != null && (getLocation().getX() == humanPoint.getX() && getLocation().getY() == humanPoint.getY())) {
 				humanPoint = null;
 			}
-			if (humans.size() > 0 && humans.size() < 5 && humanPoint == null && fireAlert == 1) {
+			if (humans.size() > 0 && humans.size() < 10 && humanPoint == null && fireAlert == 1) {
 				int move_index = RandomHelper.nextIntFromTo(0, humans.size() - 1);
 				humanPoint = humans.get(move_index).myLocation();
 			}

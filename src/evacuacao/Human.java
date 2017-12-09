@@ -1057,6 +1057,11 @@ public class Human extends Agent {
 			} else {
 				// Not know where Exit Door is
 				// TODO CREATE A MSG TO INFORM
+				// Flush Message queue
+				ACLMessage myMsg = null;
+				while ((myMsg = receive(template)) != null) {
+					System.out.println(getLocalName() + " not responde to " + myMsg.getSender().getLocalName());
+				}
 
 			}
 			// ##############################################
@@ -1610,7 +1615,7 @@ public class Human extends Agent {
 			} else {
 				// Already got a Security to carry me
 				// Follow Security
-				System.out.println(getLocalName() + " follow a security to rescue " + followSecurity.getLocalName());
+				System.out.println(getLocalName() + " follow a security to rescue " + followSecurity.getLocalName() + " is help human? " + followSecurity.isHelphuman());
 				if (followSecurity != null) {
 					if (followSecurity.getAlive() == 1)
 						moveToPoint(followSecurity.getLocation());
