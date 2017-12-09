@@ -15,6 +15,7 @@ import repast.simphony.parameter.Parameters;
 import repast.simphony.random.RandomHelper;
 import repast.simphony.space.grid.Grid;
 import repast.simphony.space.grid.GridBuilderParameters;
+import repast.simphony.space.grid.GridPoint;
 import repast.simphony.space.grid.SimpleGridAdder;
 import repast.simphony.space.grid.WrapAroundBorders;
 import sajas.wrapper.ContainerController;
@@ -30,6 +31,9 @@ public class SceneBuilder {
 	private int radiusVision;
 	private int fire_radius;
 	private int load_scene;
+	private int altruismPercent;
+	private int braveryPercent;
+	private String firePosition;
 
 	SceneBuilder(Context<Object> context) {
 		this.context = context;
@@ -48,6 +52,9 @@ public class SceneBuilder {
 			this.radiusVision = (Integer) params.getValue("radius_vision");
 			this.setFire_radius((Integer) params.getValue("fire_radius"));
 			this.load_scene = (Integer) params.getValue("load_scene");
+			this.altruismPercent = (Integer) params.getValue("altruism_percent");
+			this.braveryPercent = (Integer) params.getValue("bravery");
+			this.firePosition = (String) params.getValue("fire_pos");
 
 			buildWalls();
 			generateExits();
@@ -69,9 +76,9 @@ public class SceneBuilder {
 	}
 
 	public void checkEnd() {
-		//double tickValue = RunEnvironment.getInstance().getCurrentSchedule().getTickCount();
-		//System.out.println("### " + tickValue + " ###############################################################");
-		
+		// double tickValue = RunEnvironment.getInstance().getCurrentSchedule().getTickCount();
+		// System.out.println("### " + tickValue + " ###############################################################");
+
 		List<Security> people = new ArrayList<Security>();
 		for (Object obj : grid.getObjects()) {
 			if (obj instanceof Security) {
@@ -88,12 +95,12 @@ public class SceneBuilder {
 					humans.add((Human) obj);
 			}
 		}
-		
-		int totalPeople =people.size() + humans.size();
-		
+
+		int totalPeople = people.size() + humans.size();
+
 		double tickValue = RunEnvironment.getInstance().getCurrentSchedule().getTickCount();
-		System.out.println("### " + tickValue + " ######## People: "+totalPeople+" ########################################################");
-		
+		System.out.println("### " + tickValue + " ######## People: " + totalPeople + " ########################################################");
+
 		if (totalPeople == 0) {
 			System.out.println("#########   Animation END  #########");
 			RunEnvironment.getInstance().endRun();
@@ -123,51 +130,130 @@ public class SceneBuilder {
 	public void setAgentContainer(ContainerController agentContainer) {
 		this.agentContainer = agentContainer;
 	}
+	public int getFire_radius() {
+		return fire_radius;
+	}
 
+	public void setFire_radius(int fire_radius) {
+		this.fire_radius = fire_radius;
+	}
 	private void generateExits() {
-		while (doorsCount > 0) {
-			double chance = RandomHelper.nextDoubleFromTo(0, 1);
-			int doorExitX = 0, doorExitY = 0;
-			// right wall
-			if (chance <= 0.33) {
-				doorExitX = grid.getDimensions().getWidth() - 1;
-				doorExitY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
-			}
-			// top wall
-			else if (chance <= 0.66) {
-				doorExitX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 2);
-				doorExitY = grid.getDimensions().getHeight() - 1;
-			}
-			// bottom wall
-			else if (chance <= 1) {
-				doorExitX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 2);
-				doorExitY = 0;
-			}
-			Door exitDoor = new Door(grid);
-			context.add(exitDoor);
-			grid.moveTo(exitDoor, doorExitX, doorExitY);
-			for (Object obj : grid.getObjectsAt(doorExitX, doorExitY)) {
+
+		switch (load_scene) {
+		case 2:
+			Door exitDoorLeft = new Door(grid);
+			context.add(exitDoorLeft);
+			grid.moveTo(exitDoorLeft, 0, 12);
+
+			Door exitDoorRight = new Door(grid);
+			context.add(exitDoorRight);
+			grid.moveTo(exitDoorRight, grid.getDimensions().getWidth() - 1, 12);
+			for (Object obj : grid.getObjectsAt(grid.getDimensions().getWidth() - 1, 12)) {
 				if (obj instanceof Wall) {
 					context.remove(obj);
 				}
-				// if a door already exists at that location - try again
-				if (obj instanceof Door) {
-					context.remove(exitDoor);
-					continue;
+			}
+			for (Object obj : grid.getObjectsAt(0, 12)) {
+				if (obj instanceof Wall) {
+					context.remove(obj);
 				}
+			}
+
+			while (doorsCount > 2) {
+				double chance = RandomHelper.nextDoubleFromTo(0, 1);
+				int doorExitX = 0, doorExitY = 0;
+				// right wall
+				if (chance <= 0.33) {
+					doorExitX = grid.getDimensions().getWidth() - 1;
+					doorExitY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+				}
+				// top wall
+				else if (chance <= 0.66) {
+					doorExitX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 2);
+					doorExitY = grid.getDimensions().getHeight() - 1;
+				}
+				// bottom wall
+				else if (chance <= 1) {
+					doorExitX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 2);
+					doorExitY = 0;
+				}
+				Door exitDoor = new Door(grid);
+				context.add(exitDoor);
+				grid.moveTo(exitDoor, doorExitX, doorExitY);
+				for (Object obj : grid.getObjectsAt(doorExitX, doorExitY)) {
+					if (obj instanceof Wall) {
+						context.remove(obj);
+					}
+					// if a door already exists at that location - try again
+					if (obj instanceof Door) {
+						context.remove(exitDoor);
+						continue;
+					}
+
+				}
+
+				doorsCount--;
 
 			}
 
-			doorsCount--;
+			break;
+		default:
+			while (doorsCount > 0) {
+				double chance = RandomHelper.nextDoubleFromTo(0, 1);
+				int doorExitX = 0, doorExitY = 0;
+				// right wall
+				if (chance <= 0.33) {
+					doorExitX = grid.getDimensions().getWidth() - 1;
+					doorExitY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+				}
+				// top wall
+				else if (chance <= 0.66) {
+					doorExitX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 2);
+					doorExitY = grid.getDimensions().getHeight() - 1;
+				}
+				// bottom wall
+				else if (chance <= 1) {
+					doorExitX = RandomHelper.nextIntFromTo(grid.getDimensions().getWidth() - 20, grid.getDimensions().getWidth() - 2);
+					doorExitY = 0;
+				}
+				Door exitDoor = new Door(grid);
+				context.add(exitDoor);
+				grid.moveTo(exitDoor, doorExitX, doorExitY);
+				for (Object obj : grid.getObjectsAt(doorExitX, doorExitY)) {
+					if (obj instanceof Wall) {
+						context.remove(obj);
+					}
+					// if a door already exists at that location - try again
+					if (obj instanceof Door) {
+						context.remove(exitDoor);
+						continue;
+					}
 
+				}
+
+				doorsCount--;
+
+			}
+			break;
 		}
+
 	}
 
 	public void createHumans() {
 
+		double alt_percent = (double) (altruismPercent / 100.0);
+		double bravery_percent = (double) (braveryPercent / 100.0);
+		int altruismCount = (int) Math.ceil((humanCount * alt_percent));
+		int bravery = (int) Math.ceil((altruismCount * bravery_percent));
+		/*
+		 * System.out.println("Number of altruistic type 1: " + (altruismCount - bravery));
+		 * System.out.println("Number of altruistic type 2: " + bravery);
+		 * System.out.println("Number of non-altruistic: "+ (humanCount - altruismCount));
+		 */
+
 		switch (load_scene) {
 		case 0:
-			
+
 			for (int i = 0; i < humanCount; i++) {
 				int altruist = RandomHelper.nextIntFromTo(0, 3);
 				Human newHuman = new Human(grid, context, Condition.healthy, altruist, radiusVision);
@@ -220,7 +306,13 @@ public class SceneBuilder {
 		default:
 
 			for (int i = 0; i < humanCount; i++) {
-				newHuman = new Human(grid, context, Condition.healthy, 4, radiusVision);
+				int altruist = 0;
+				if (i < bravery) {
+					altruist = 2;
+				} else if (i < (altruismCount - bravery)) {
+					altruist = 1;
+				}
+				newHuman = new Human(grid, context, Condition.healthy, altruist, radiusVision);
 				context.add(newHuman);
 				int startX = RandomHelper.nextIntFromTo(1, grid.getDimensions().getWidth() - 20);
 				int startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
@@ -231,6 +323,7 @@ public class SceneBuilder {
 				grid.moveTo(newHuman, startX, startY);
 				try {
 					agentContainer.acceptNewAgent("person" + i, newHuman).start();
+					System.out.println("-> person" + i + " altruist: " + altruist);
 				} catch (StaleProxyException e) {
 					e.printStackTrace();
 				}
@@ -458,6 +551,61 @@ public class SceneBuilder {
 			buildBlockAt(22, 15, 10, 3);
 			break;
 
+		case 2:
+			for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
+				if ((0 < i && i < 10) || (14 < i && i < grid.getDimensions().getHeight())) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, 13, i);
+				}
+			}
+			for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
+				if ((0 < i && i < 10) || (14 < i && i < grid.getDimensions().getHeight())) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, 26, i);
+				}
+			}
+			for (int i = 1; i < grid.getDimensions().getWidth(); i++) {
+				if (i != 9 && i != 23 && i != 30) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, i, 9);
+				}
+			}
+			for (int i = 1; i < grid.getDimensions().getWidth(); i++) {
+				if (i != 9 && i != 15 && i != 29) {
+					Wall wall = new Wall(grid);
+					context.add(wall);
+					grid.moveTo(wall, i, 15);
+				}
+			}
+			buildBlockAt(3, 18, 1, 4);
+			buildBlockAt(6, 18, 1, 4);
+			buildBlockAt(9, 18, 1, 4);
+
+			buildBlockAt(16, 21, 1, 4);
+			buildBlockAt(21, 21, 1, 4);
+			buildBlockAt(22, 21, 1, 4);
+			buildBlockAt(17, 16, 1, 4);
+			buildBlockAt(20, 16, 1, 4);
+			buildBlockAt(23, 16, 1, 4);
+
+			buildBlockAt(4, 6, 4, 1);
+			buildBlockAt(9, 3, 1, 4);
+			buildBlockAt(4, 3, 4, 1);
+
+			buildBlockAt(16, 6, 6, 1);
+			buildBlockAt(16, 3, 6, 1);
+
+			buildBlockAt(29, 21, 2, 3);
+			buildBlockAt(34, 21, 2, 3);
+			buildBlockAt(30, 16, 2, 3);
+			buildBlockAt(35, 16, 2, 3);
+
+			buildBlockAt(29, 4, 5, 3);
+			break;
+
 		default:
 
 			for (int i = 1; i < grid.getDimensions().getHeight() - 1; i++) {
@@ -530,8 +678,13 @@ public class SceneBuilder {
 	}
 
 	public void scheduleFire() {
-		
-		//TODO LOAD SCENE
+
+		String[] arr = firePosition.split(";");
+		int[] startPosArr = new int[2];
+		startPosArr[0] = Integer.parseInt(arr[0]);
+		startPosArr[1] = Integer.parseInt(arr[1]);
+
+		// TODO LOAD SCENE
 		switch (load_scene) {
 		case 0:
 			int startX = RandomHelper.nextIntFromTo(1, 21);
@@ -539,6 +692,10 @@ public class SceneBuilder {
 			while (!isValidPosition(startX, startY, grid)) {
 				startX = RandomHelper.nextIntFromTo(1, 21);
 				startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
+			}
+			if (validPosition(startPosArr[0], startPosArr[1])) {
+				startX = startPosArr[0];
+				startY = startPosArr[1];
 			}
 			new ScheduleFire(grid, context, startX, startY);
 			break;
@@ -561,6 +718,12 @@ public class SceneBuilder {
 				startX = RandomHelper.nextIntFromTo(1, 21);
 				startY = RandomHelper.nextIntFromTo(1, grid.getDimensions().getHeight() - 2);
 			}
+
+			if (validPosition(startPosArr[0], startPosArr[1])) {
+				startX = startPosArr[0];
+				startY = startPosArr[1];
+			}
+
 			new ScheduleFire(grid, context, startX, startY);
 			break;
 		}
@@ -617,12 +780,36 @@ public class SceneBuilder {
 		return true;
 	}
 
-	public int getFire_radius() {
-		return fire_radius;
-	}
-
-	public void setFire_radius(int fire_radius) {
-		this.fire_radius = fire_radius;
+	public ArrayList<GridPoint> getExitRooms() {
+		ArrayList<GridPoint> exitRooms = new ArrayList<GridPoint>();
+		switch (load_scene) {
+		case 0:
+			GridPoint exitRomsPointTop = new GridPoint(19, 20);
+			GridPoint exitRomsPointBottom = new GridPoint(19, 8);
+			exitRooms.add(exitRomsPointTop);
+			exitRooms.add(exitRomsPointBottom);
+			break;
+		case 1:
+			exitRomsPointTop = new GridPoint(19, 20);
+			exitRomsPointBottom = new GridPoint(19, 8);
+			exitRooms.add(exitRomsPointTop);
+			exitRooms.add(exitRomsPointBottom);
+			break;
+		case 2:
+			exitRomsPointTop = new GridPoint(20, 12);
+			exitRomsPointBottom = new GridPoint(30, 12);
+			exitRooms.add(exitRomsPointTop);
+			exitRooms.add(exitRomsPointBottom);
+			break;
+		default:
+			exitRomsPointTop = new GridPoint(19, 20);
+			exitRomsPointBottom = new GridPoint(19, 8);
+			exitRooms.add(exitRomsPointTop);
+			exitRooms.add(exitRomsPointBottom);
+			break;
+		}
+		
+		return exitRooms;
 	}
 
 }

@@ -18,6 +18,15 @@
 		defaultValue="3" isReadOnly="false"
 		converter="repast.simphony.parameter.StringConverterFactory$IntConverter" />
 	<parameter name="load_scene" displayName="Load Scene" type="int"
-		defaultValue="0" isReadOnly="false"
+		defaultValue="2" isReadOnly="false"
 		converter="repast.simphony.parameter.StringConverterFactory$IntConverter" />
+			<parameter name="fire_pos" displayName="Fire Position" type="java.lang.String" 
+		defaultValue="0;0" isReadOnly="false" 
+		converter="repast.simphony.parameter.StringConverterFactory$StringStringConverter"/>
+	<parameter name="altruism_percent" displayName="Altruism Percentage" type="int" 
+		defaultValue="50" isReadOnly="false" 
+		converter="repast.simphony.parameter.StringConverterFactory$IntConverter"/>
+	<parameter name="bravery" displayName="Bravery" type="int" 
+		defaultValue="100" isReadOnly="false" 
+		converter="repast.simphony.parameter.StringConverterFactory$IntConverter"/>
 </parameters>

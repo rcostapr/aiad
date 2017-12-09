@@ -43,6 +43,12 @@ public class Security extends Agent {
 
 	private GridPoint humanPoint;
 
+	private Context<Object> context;
+
+	private ArrayList<GridPoint> exitRooms;
+
+	private int fire_radius;
+
 	public int getAlive() {
 		return alive;
 	}
@@ -65,6 +71,7 @@ public class Security extends Agent {
 		grid.moveTo(this, startX, startY);
 		this.exitAlive = 0;
 		this.alive = 1;
+		this.context = context;
 	}
 
 	public int getExitAlive() {
@@ -75,7 +82,7 @@ public class Security extends Agent {
 		this.exitAlive = exitAlive;
 	}
 
-	public GridPoint myLocation() {
+	public GridPoint getLocation() {
 		return grid.getLocation(this);
 	}
 
@@ -93,7 +100,7 @@ public class Security extends Agent {
 		}
 		if (doors.size() > 0) {
 			for (int i = 0; i < doors.size(); i++) {
-				double distVal = Math.hypot(myLocation().getX() - doors.get(i).getLocation().getX(), myLocation().getY() - doors.get(i).getLocation().getY());
+				double distVal = Math.hypot(getLocation().getX() - doors.get(i).getLocation().getX(), getLocation().getY() - doors.get(i).getLocation().getY());
 				if (distVal < distToExit) {
 					distToExit = distVal;
 					indexDoor = i;
@@ -197,16 +204,18 @@ public class Security extends Agent {
 		double distToExit = 999999;
 		int indexDoor = -1;
 
-		// Move To Shortest Exit
+		// Available Exits
 		List<Door> doors = new ArrayList<Door>();
 		for (Object obj : grid.getObjects()) {
 			if (obj instanceof Door) {
-				doors.add((Door) obj);
+				if (validPath(((Door) obj).getLocation()))
+					doors.add((Door) obj);
 			}
 		}
+		// Move to the Shortest Exit
 		if (doors.size() > 0) {
 			for (int i = 0; i < doors.size(); i++) {
-				double distVal = Math.hypot(myLocation().getX() - doors.get(i).getLocation().getX(), myLocation().getY() - doors.get(i).getLocation().getY());
+				double distVal = Math.hypot(getLocation().getX() - doors.get(i).getLocation().getX(), getLocation().getY() - doors.get(i).getLocation().getY());
 				if (distVal < distToExit) {
 					distToExit = distVal;
 					indexDoor = i;
@@ -226,6 +235,16 @@ public class Security extends Agent {
 	public void setup() {
 		// System.out.println("######### Animation START SEC #########");
 		// register language and ontology
+		SceneBuilder scene = null;
+		for (Object obj : context.getObjects(SceneBuilder.class)) {
+			if (obj instanceof SceneBuilder) {
+				scene = (SceneBuilder) obj;
+			}
+		}
+		// System.out.println("??????-> " +scene.getFire_radius() + " " + scene.getExitRooms().get(0));
+		this.fire_radius = scene.getFire_radius();
+		this.exitRooms = scene.getExitRooms();
+
 		codec = new SLCodec();
 		serviceOntology = ServiceOntology.getInstance();
 		getContentManager().registerLanguage(codec);
@@ -289,15 +308,28 @@ public class Security extends Agent {
 
 			// Nobody left behind go to exit
 			if (humans.size() == 0) {
-				moveTowards(myLocation());
+				moveTowards(getLocation());
 				return;
 			}
-			if (findNearFire(3)) {
-				if (allHumanTrapped(humans))
-					moveTowards(myLocation());
-			}
+			
 			if (isHelphuman()) {
-				moveTowards(myLocation());
+				moveTowards(getLocation());
+				return;
+			}
+			
+			if (findNearFire(fire_radius)) {
+				moveTowards(getLocation());
+				return;
+			}
+			
+			if (allHumanTrapped(humans)){
+				moveTowards(getLocation());
+				return;
+			}
+			
+			if (isHelphuman()) {
+				moveTowards(getLocation());
+				return;
 			}
 			// #############################
 
@@ -306,23 +338,23 @@ public class Security extends Agent {
 				// Decide which rooms exit is closer
 				// State knowExit = 0 && knowSecurity = 0 && fireAlert = 1
 				// Move To exitRomsPoint
-				GridPoint exitRomsPointTop = new GridPoint(19, 20);
-				GridPoint exitRomsPointBottom = new GridPoint(19, 8);
+				GridPoint exitRomsPointTop = exitRooms.get(0);
+				GridPoint exitRomsPointBottom = exitRooms.get(1);
 				// If Still inside rooms go to the exitRomsPoint closer
 				// I can always get to the nearest exit if there is
 				// Even if i'm injured
-				if (myLocation().getX() < 20 && fireAlert == 1) {
+				if (getLocation().getX() < 20 && fireAlert == 1) {
 					GridPoint exitRomsPoint = null;
-					if (getDistBetween(myLocation(), exitRomsPointTop) < getDistBetween(myLocation(), exitRomsPointBottom)) {
+					if (getDistBetween(getLocation(), exitRomsPointTop) < getDistBetween(getLocation(), exitRomsPointBottom)) {
 						// Choose top Exit more close
 						if (validPath(exitRomsPointTop)) {
-							exitRomsPoint = new GridPoint(20, 20);
-							System.out.println(getLocalName() + " goto exitRomsPointTop.");
+							exitRomsPoint = exitRomsPointTop;
+							System.out.println(getLocalName() + " goto exitRomsPointTop" + exitRomsPointTop);
 						} else {
 							// There is no path to the shortest exit lets try the other one
 							if (validPath(exitRomsPointBottom)) {
-								exitRomsPoint = new GridPoint(20, 8);
-								System.out.println(getLocalName() + " goto exitRomsPointBottom.");
+								exitRomsPoint = exitRomsPointBottom;
+								System.out.println(getLocalName() + " goto exitRomsPointBottom " + exitRomsPointBottom);
 							} else {
 								System.out.println(getLocalName() + " is trapped in the fire.");
 							}
@@ -354,7 +386,7 @@ public class Security extends Agent {
 
 		private boolean allHumanTrapped(List<Human> humans) {
 			for (int i = 0; i < humans.size(); i++) {
-				if (validPath(humans.get(i).myLocation()))
+				if (validPath(humans.get(i).getLocation()))
 					return false;
 			}
 			return true;
@@ -362,14 +394,14 @@ public class Security extends Agent {
 
 		@Override
 		public boolean done() {
-			if (checkDoorAtLocation(myLocation().getX(), myLocation().getY())) {
-				System.out.println(getLocalName() + " Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
+			if (checkDoorAtLocation(getLocation().getX(), getLocation().getY())) {
+				System.out.println(getLocalName() + " Found Door -> " + getLocation().getX() + " : " + getLocation().getY());
 				exitAlive = 1;
 				System.out.println(getLocalName() + " out alive");
 				takeDown();
 				return true;
 			}
-			if (checkFireAtLocation(myLocation().getX(), myLocation().getY())) {
+			if (checkFireAtLocation(getLocation().getX(), getLocation().getY())) {
 				alive = 0;
 				System.out.println(getLocalName() + " Die........");
 				takeDown();
@@ -409,7 +441,7 @@ public class Security extends Agent {
 
 	public boolean findNearFire(int radius) {
 
-		GridCellNgh<Fire> neighbourhood = new GridCellNgh<Fire>(grid, myLocation(), Fire.class, radius, radius);
+		GridCellNgh<Fire> neighbourhood = new GridCellNgh<Fire>(grid, getLocation(), Fire.class, radius, radius);
 		List<GridCell<Fire>> nghPoints = neighbourhood.getNeighborhood(false);
 
 		for (GridCell<Fire> fire : nghPoints) {
@@ -476,7 +508,7 @@ public class Security extends Agent {
 		}
 		if (humans.size() > 0 && humans.size() < 5 && humanPoint == null && fireAlert == 1) {
 			int move_index = RandomHelper.nextIntFromTo(0, humans.size() - 1);
-			humanPoint = humans.get(move_index).myLocation();
+			humanPoint = humans.get(move_index).getLocation();
 		}
 		if (humanPoint != null)
 			if (validPath(humanPoint)) {
@@ -486,22 +518,18 @@ public class Security extends Agent {
 			}
 	}
 
-	public GridPoint getLocation() {
-		return grid.getLocation(this);
-	}
-
 	public void moveToPoint(GridPoint point) {
-		GridPoint nextPoint = getNextPoint(myLocation(), point);
+		GridPoint nextPoint = getNextPoint(getLocation(), point);
 		if (nextPoint != null) {
 			grid.moveTo(this, (int) nextPoint.getX(), (int) nextPoint.getY());
 		} else {
-			System.out.println(
-					getLocalName() + " at " + myLocation().getX() + "," + myLocation().getY() + " impossible destiny to " + point.getX() + "," + point.getY());
+			System.out.println(getLocalName() + " at " + getLocation().getX() + "," + getLocation().getY() + " impossible destiny to " + point.getX() + ","
+					+ point.getY());
 		}
 	}
 
 	public boolean validPath(GridPoint point) {
-		GridPoint nextPoint = getNextPoint(myLocation(), point);
+		GridPoint nextPoint = getNextPoint(getLocation(), point);
 		if (nextPoint != null) {
 			return true;
 		}
@@ -546,7 +574,7 @@ public class Security extends Agent {
 		for (Object obj : grid.getObjects()) {
 			if (obj instanceof Human) {
 				// Humano ainda não saiu e está vivo ou aleijado Segurança espera
-				if (((Human) obj).getAlive() == 1)
+				if (((Human) obj).getAlive() == 1 && validPath(((Human) obj).getLocation()))
 					if (((Human) obj).getKnowExit() == 0 || ((Human) obj).getCondition() == Condition.injured)
 						humans.add((Human) obj);
 			}
@@ -590,7 +618,7 @@ public class Security extends Agent {
 					// find people in the surrounding area
 					ArrayList<AID> humanNear = findNearAgents(myAgent, 6);
 					if (humanNear.isEmpty()) {
-						System.out.println(getLocalName() + " Agent " + " No one near at " + myLocation().getX() + "," + myLocation().getY());
+						System.out.println(getLocalName() + " Agent " + " No one near at " + getLocation().getX() + "," + getLocation().getY());
 						return;
 					}
 
@@ -670,7 +698,7 @@ public class Security extends Agent {
 			}
 			if (humans.size() > 0 && humans.size() < 10 && humanPoint == null && fireAlert == 1) {
 				int move_index = RandomHelper.nextIntFromTo(0, humans.size() - 1);
-				humanPoint = humans.get(move_index).myLocation();
+				humanPoint = humans.get(move_index).getLocation();
 			}
 			if (humanPoint != null)
 				if (validPath(humanPoint)) {
@@ -711,16 +739,21 @@ public class Security extends Agent {
 				if ((content != null) && (content.indexOf("EXIT") != -1)) {
 					reply.setPerformative(ACLMessage.INFORM);
 					GridPoint point = getNearExit();
-					GoToPoint goToPoint = new GoToPoint(point.getX(), point.getY());
+					if (point != null) {
+						GoToPoint goToPoint = new GoToPoint(point.getX(), point.getY());
 
-					try {
-						// send reply
-						reply.setContentObject(goToPoint);
+						try {
+							// send reply
+							reply.setContentObject(goToPoint);
+							send(reply);
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+						System.out.println(getLocalName() + " send reply " + msg.getSender().getLocalName());
+					} else {
+						reply.setContent("We are trapped");
 						send(reply);
-					} catch (IOException e) {
-						e.printStackTrace();
 					}
-					System.out.println(getLocalName() + " send reply " + msg.getSender().getLocalName());
 				}
 
 			}

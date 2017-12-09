@@ -11,7 +11,6 @@ import repast.simphony.context.Context;
 import repast.simphony.engine.environment.RunEnvironment;
 import repast.simphony.engine.schedule.ISchedule;
 import repast.simphony.engine.schedule.ScheduleParameters;
-import repast.simphony.parameter.Parameters;
 import repast.simphony.query.space.grid.GridCell;
 import repast.simphony.query.space.grid.GridCellNgh;
 import repast.simphony.random.RandomHelper;
@@ -74,9 +73,12 @@ public class Human extends Agent {
 
 	private Security followSecurity = null;
 	private int fire_radius;
+	
+	private ArrayList<GridPoint> exitRooms;
 
 	protected Codec codec;
 	protected Ontology serviceOntology;
+	
 	public static final String HELP_MESSAGE = "Can you help me find EXIT door?";
 	public static final String FIRE_MESSAGE = "FIRE FIRE Run to exit!?!??!";
 	public static final String SECURITY_MESSAGE = "TELL ME WHERE IS THE EXIT DOOR...";
@@ -281,7 +283,7 @@ public class Human extends Agent {
 		return false;
 	}
 
-	GridPoint myLocation() {
+	GridPoint getLocation() {
 		return grid.getLocation(this);
 	}
 
@@ -328,13 +330,13 @@ public class Human extends Agent {
 	}
 
 	public void moveToPoint(GridPoint point) {
-		GridPoint nextPoint = getNextPoint(myLocation(), point);
+		GridPoint nextPoint = getNextPoint(getLocation(), point);
 		if (nextPoint != null) {
 			grid.moveTo(this, (int) nextPoint.getX(), (int) nextPoint.getY());
 		} else {
 			System.out.println(
-					getLocalName() + " at " + myLocation().getX() + "," + myLocation().getY() + " impossible destiny to " + point.getX() + "," + point.getY());
-			moveToExplore(myLocation());
+					getLocalName() + " at " + getLocation().getX() + "," + getLocation().getY() + " impossible destiny to " + point.getX() + "," + point.getY());
+			moveToExplore(getLocation());
 		}
 	}
 
@@ -351,7 +353,7 @@ public class Human extends Agent {
 		}
 		if (doors.size() > 0) {
 			for (int i = 0; i < doors.size(); i++) {
-				double distVal = Math.hypot(myLocation().getX() - doors.get(i).getLocation().getX(), myLocation().getY() - doors.get(i).getLocation().getY());
+				double distVal = Math.hypot(getLocation().getX() - doors.get(i).getLocation().getX(), getLocation().getY() - doors.get(i).getLocation().getY());
 				if (distVal < distToExit) {
 					distToExit = distVal;
 					indexDoor = i;
@@ -440,7 +442,7 @@ public class Human extends Agent {
 		Graph g = new Graph(GRAPH);
 		g.dijkstra(START);
 		GridPoint nextPoint = g.getNextPoint(START, END);
-		System.out.println(" Distance: " + g.getDist(END));
+		//System.out.println(" Distance: " + g.getDist(END));
 		// g.printPath(END);
 		// g.printAllPaths();
 		return nextPoint;
@@ -548,7 +550,7 @@ public class Human extends Agent {
 
 	public void findNearHumans(int radius) {
 		ArrayList<AID> neighboursList = new ArrayList<AID>();
-		GridCellNgh<Human> nghCreator = new GridCellNgh<Human>(grid, myLocation(), Human.class, radius, radius);
+		GridCellNgh<Human> nghCreator = new GridCellNgh<Human>(grid, getLocation(), Human.class, radius, radius);
 		List<GridCell<Human>> gridCells = nghCreator.getNeighborhood(true);
 		System.out.println("--------------->");
 		GridPoint pt = null;
@@ -601,14 +603,14 @@ public class Human extends Agent {
 	public ArrayList<Fire> findNearFire(int radius) {
 		ArrayList<Fire> neighboursFire = new ArrayList<Fire>();
 
-		GridCellNgh<Fire> neighbourhood = new GridCellNgh<Fire>(grid, myLocation(), Fire.class, radius, radius);
+		GridCellNgh<Fire> neighbourhood = new GridCellNgh<Fire>(grid, getLocation(), Fire.class, radius, radius);
 		List<GridCell<Fire>> nghPoints = neighbourhood.getNeighborhood(false);
 
 		for (GridCell<Fire> fire : nghPoints) {
 			if (fire.size() > 0) {
 				Iterable<Fire> iterable = fire.items();
 				for (Fire myFire : iterable) {
-					if (getDistBetween(myLocation(), myFire.getLocation()) <= radius)
+					if (getDistBetween(getLocation(), myFire.getLocation()) <= radius)
 						neighboursFire.add(myFire);
 				}
 			}
@@ -674,7 +676,7 @@ public class Human extends Agent {
 					// Necessário garantir que está mesmo no raio de visão
 					// Usar neighbourhood é mais util pois evita excesso de
 					// processamento na verificação de vizinhança
-					if (getDistBetween(grid.getLocation(myAgent), human.myLocation()) <= radius)
+					if (getDistBetween(grid.getLocation(myAgent), human.getLocation()) <= radius)
 						humanList.add(human);
 				}
 			}
@@ -703,8 +705,15 @@ public class Human extends Agent {
 
 	@Override
 	public void setup() {
-		SceneBuilder scene = (SceneBuilder) context.getObjects(SceneBuilder.class).get(0);
+		SceneBuilder scene = null;
+		for(Object obj : context.getObjects(SceneBuilder.class)) {
+			if(obj instanceof SceneBuilder) {
+				scene = (SceneBuilder) obj;
+			}
+		}
+		//System.out.println("??????-> " +scene.getFire_radius() + " " + scene.getExitRooms().get(0));
 		this.fire_radius = scene.getFire_radius();
+		this.exitRooms = scene.getExitRooms();
 
 		// register language and ontology
 		codec = new SLCodec();
@@ -781,9 +790,9 @@ public class Human extends Agent {
 
 				// injured
 				for (int i = 0; i < fireList.size(); i++) {
-					if (getDistBetween(myLocation(), fireList.get(i).getLocation()) == 1) {
+					if (getDistBetween(getLocation(), fireList.get(i).getLocation()) == 1) {
 						condition = Condition.injured;
-						System.out.println(getLocalName() + " is injured at: " + myLocation().getX() + " " + myLocation().getY() + " condition: " + condition);
+						System.out.println(getLocalName() + " is injured at: " + getLocation().getX() + " " + getLocation().getY() + " condition: " + condition);
 					}
 				}
 
@@ -911,7 +920,7 @@ public class Human extends Agent {
 					// find people in the surrounding area
 					ArrayList<AID> humanNear = findNearAgents(myAgent, visionRadius);
 					if (humanNear.isEmpty()) {
-						System.out.println(getLocalName() + " Agent " + " No one near at " + myLocation().getX() + "," + myLocation().getY());
+						System.out.println(getLocalName() + " Agent " + " No one near at " + getLocation().getX() + "," + getLocation().getY());
 						return;
 					}
 
@@ -1074,11 +1083,11 @@ public class Human extends Agent {
 					// SEND MESSAGE TO ALL Human in that place
 					ACLMessage msgSend = new ACLMessage(ACLMessage.QUERY_IF);
 
-					System.out.print(getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " visionRadius " + visionRadius + " Found Human");
+					System.out.print(getLocalName() + " " + getLocation().getX() + " " + getLocation().getY() + " visionRadius " + visionRadius + " Found Human");
 
 					// Define who's gone receive the message
 					for (int i = 0; i < listNearHuman.size(); i++) {
-						System.out.print(" at position:" + listNearHuman.get(i).myLocation().getX() + "," + listNearHuman.get(i).myLocation().getY());
+						System.out.print(" at position:" + listNearHuman.get(i).getLocation().getX() + "," + listNearHuman.get(i).getLocation().getY());
 						Human human = (Human) listNearHuman.get(i);
 						msgSend.addReceiver(human.getAID());
 					}
@@ -1134,7 +1143,7 @@ public class Human extends Agent {
 
 						// Store the human to save
 						humanToCarry = ((Human) findAgent(request.getSender()));
-						GridPoint humanPoint = humanToCarry.myLocation();
+						GridPoint humanPoint = humanToCarry.getLocation();
 						System.out.println("======> Go rescue " + request.getSender().getLocalName() + " " + getLocalName() + " send save reply "
 								+ request.getSender().getLocalName() + " at: " + humanPoint.getX() + "," + humanPoint.getY() + " will help");
 					}
@@ -1169,7 +1178,7 @@ public class Human extends Agent {
 
 			// If there is no Fire Nothing to do
 			if (fireAlert == 0) {
-				moveToExplore(myLocation());
+				moveToExplore(getLocation());
 				return;
 			}
 			if (knowExit == 1 & !validPath(new GridPoint(exitX, exitY))) {
@@ -1188,7 +1197,7 @@ public class Human extends Agent {
 				if (handlingHelpRequest) {
 					System.out.print(getLocalName() + " try to handlingHelpRequest -> ");
 					// Check if is on human to carry place
-					if (humanToCarry.myLocation().getX() == myLocation().getX() && humanToCarry.myLocation().getY() == myLocation().getY()) {
+					if (humanToCarry.getLocation().getX() == getLocation().getX() && humanToCarry.getLocation().getY() == getLocation().getY()) {
 						gothumanToCarry = true;
 						System.out.print("is on human to carry place ");
 					}
@@ -1202,7 +1211,7 @@ public class Human extends Agent {
 							System.out.print("yes he choose me ");
 							if (!gothumanToCarry) {
 								System.out.print(" moving to humanToCarry place");
-								moveToPoint(humanToCarry.myLocation());
+								moveToPoint(humanToCarry.getLocation());
 								return;
 							} else {
 								System.out.print(" gothumanToCarry moving exit");
@@ -1233,8 +1242,8 @@ public class Human extends Agent {
 			}
 
 			// I'm outside exitRomsPoint
-			if (myLocation().getX() >= 20 && fireAlert == 1) {
-				moveToExplore(myLocation());
+			if (getLocation().getX() >= 20 && fireAlert == 1) {
+				moveToExplore(getLocation());
 				// If injured i stay here waiting for help
 				if (condition == Condition.injured) {
 					removeBehaviour(this);
@@ -1257,10 +1266,10 @@ public class Human extends Agent {
 					knowExit = 1;
 					int distToDoor = 99999;
 					System.out
-							.print(getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " visionRadius " + visionRadius + " Found Door :");
+							.print(getLocalName() + " " + getLocation().getX() + " " + getLocation().getY() + " visionRadius " + visionRadius + " Found Door :");
 					for (int i = 0; i < listNearDoors.size(); i++) {
 						System.out.print(" at position:" + listNearDoors.get(i).getLocation().getX() + "," + listNearDoors.get(i).getLocation().getY());
-						int distDoor = getDistBetween(myLocation(), listNearDoors.get(i).getLocation());
+						int distDoor = getDistBetween(getLocation(), listNearDoors.get(i).getLocation());
 						if (distDoor < distToDoor) {
 							distToDoor = distDoor;
 							exitX = listNearDoors.get(i).getLocation().getX();
@@ -1280,10 +1289,10 @@ public class Human extends Agent {
 					// Se avistar mais do que um segurança escolher o que estiver mais perto
 					int distToSecurity = 99999;
 					System.out.print(
-							getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " visionRadius " + visionRadius + " Found Security");
+							getLocalName() + " " + getLocation().getX() + " " + getLocation().getY() + " visionRadius " + visionRadius + " Found Security");
 					for (int i = 0; i < listNearSecurity.size(); i++) {
 						System.out.print(" at position:" + listNearSecurity.get(i).getLocation().getX() + "," + listNearSecurity.get(i).getLocation().getY());
-						int distSecurity = getDistBetween(myLocation(), listNearSecurity.get(i).getLocation());
+						int distSecurity = getDistBetween(getLocation(), listNearSecurity.get(i).getLocation());
 						if (distSecurity < distToSecurity) {
 							distToSecurity = distSecurity;
 							securityX = listNearSecurity.get(i).getLocation().getX();
@@ -1299,23 +1308,23 @@ public class Human extends Agent {
 			// Decide which rooms exit is closer
 			// State knowExit = 0 && knowSecurity = 0 && fireAlert = 1
 			// Move To exitRomsPoint
-			GridPoint exitRomsPointTop = new GridPoint(19, 20);
-			GridPoint exitRomsPointBottom = new GridPoint(19, 8);
+			GridPoint exitRomsPointTop = exitRooms.get(0);
+			GridPoint exitRomsPointBottom = exitRooms.get(1);
 			// If Still inside rooms go to the exitRomsPoint closer
 			// I can always get to the nearest exit if there is
 			// Even if i'm injured
-			if (myLocation().getX() < 20 && fireAlert == 1) {
+			if (getLocation().getX() < 20 && fireAlert == 1) {
 				GridPoint exitRomsPoint = null;
-				if (getDistBetween(myLocation(), exitRomsPointTop) < getDistBetween(myLocation(), exitRomsPointBottom)) {
+				if (getDistBetween(getLocation(), exitRomsPointTop) < getDistBetween(getLocation(), exitRomsPointBottom)) {
 					// Choose top Exit more close
 					if (validPath(exitRomsPointTop)) {
-						exitRomsPoint = new GridPoint(20, 20);
-						System.out.println(getLocalName() + " goto exitRomsPointTop.");
+						exitRomsPoint = exitRomsPointTop;
+						System.out.println(getLocalName() + " goto exitRomsPointTop " + exitRomsPointTop);
 					} else {
 						// There is no path to the shortest exit lets try the other one
 						if (validPath(exitRomsPointBottom)) {
-							exitRomsPoint = new GridPoint(20, 8);
-							System.out.println(getLocalName() + " goto exitRomsPointBottom.");
+							exitRomsPoint = exitRomsPointBottom;
+							System.out.println(getLocalName() + " goto exitRomsPointBottom " + exitRomsPointBottom);
 						} else {
 							System.out.println(getLocalName() + " is trapped in the fire.");
 						}
@@ -1342,7 +1351,7 @@ public class Human extends Agent {
 				else {
 					// trapped in the fire
 					// Try to survive as long as i can
-					moveToExplore(myLocation());
+					moveToExplore(getLocation());
 				}
 			}
 
@@ -1355,9 +1364,9 @@ public class Human extends Agent {
 
 				// injured
 				for (int i = 0; i < fireList.size(); i++) {
-					if (getDistBetween(myLocation(), fireList.get(i).getLocation()) == 1) {
+					if (getDistBetween(getLocation(), fireList.get(i).getLocation()) == 1) {
 						condition = Condition.injured;
-						System.out.println(getLocalName() + " is injured at: " + myLocation().getX() + " " + myLocation().getY() + " condition: " + condition);
+						System.out.println(getLocalName() + " is injured at: " + getLocation().getX() + " " + getLocation().getY() + " condition: " + condition);
 					}
 				}
 			}
@@ -1402,26 +1411,26 @@ public class Human extends Agent {
 			if (fireAlert == 1) {
 				// ##################################
 				if (knowExit == 1)
-					if (checkDoorAtLocation(myLocation().getX(), myLocation().getY())) {
-						System.out.println(getLocalName() + " Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
+					if (checkDoorAtLocation(getLocation().getX(), getLocation().getY())) {
+						System.out.println(getLocalName() + " Found Door -> " + getLocation().getX() + " : " + getLocation().getY());
 						exitAlive = 1;
 						takeDown();
 						return true;
 					}
 				// ##################################
 				if (knowExit == 0) {
-					List<Object> securities = checkSecurityAtLocation(myLocation().getX(), myLocation().getY());
-					if (securities.size() == 0 && knowSecurity == 1 && myLocation().getX() == securityX && myLocation().getY() == securityY) {
+					List<Object> securities = checkSecurityAtLocation(getLocation().getX(), getLocation().getY());
+					if (securities.size() == 0 && knowSecurity == 1 && getLocation().getX() == securityX && getLocation().getY() == securityY) {
 						// Security change position lets try to find him again
 						knowSecurity = 0;
 					}
-					if (securities.size() > 0 && knowSecurity == 1 && myLocation().getX() == securityX && myLocation().getY() == securityY) {
+					if (securities.size() > 0 && knowSecurity == 1 && getLocation().getX() == securityX && getLocation().getY() == securityY) {
 						// Same position of security send request for exit position
 						sendMsgToSecurity(securities);
 					}
 				}
 				// ##################################
-				if (checkFireAtLocation(myLocation().getX(), myLocation().getY())) {
+				if (checkFireAtLocation(getLocation().getX(), getLocation().getY())) {
 					alive = 0;
 					System.out.println(getLocalName() + " Die........");
 					takeDown();
@@ -1434,7 +1443,7 @@ public class Human extends Agent {
 	}
 
 	public boolean validPath(GridPoint point) {
-		GridPoint nextPoint = getNextPoint(myLocation(), point);
+		GridPoint nextPoint = getNextPoint(getLocation(), point);
 		if (nextPoint != null) {
 			return true;
 		}
@@ -1473,15 +1482,15 @@ public class Human extends Agent {
 				}
 
 			if (wasHelped == 1 && humanToCarryMe != null)
-				if (condition == Condition.injured && humanToCarryMe.myLocation().getX() == myLocation().getX()
-						&& humanToCarryMe.myLocation().getY() == myLocation().getY()) {
+				if (condition == Condition.injured && humanToCarryMe.getLocation().getX() == getLocation().getX()
+						&& humanToCarryMe.getLocation().getY() == getLocation().getY()) {
 					// Help arrived follow the human helper
 					condition = Condition.saved;
 				}
 
 			if (condition == Condition.saved) {
 				System.out.println(getLocalName() + " follow human who is carry me");
-				moveToPoint(humanToCarryMe.myLocation());
+				moveToPoint(humanToCarryMe.getLocation());
 			}
 			if (wasHelped == 0) {
 				// I'm injured need help. Send help request.
@@ -1491,12 +1500,12 @@ public class Human extends Agent {
 					// SEND MESSAGE TO ALL Human in that place
 					ACLMessage msgSend = new ACLMessage(ACLMessage.QUERY_IF);
 
-					System.out.print(getLocalName() + " " + myLocation().getX() + " " + myLocation().getY() + " is injured send request ");
+					System.out.print(getLocalName() + " " + getLocation().getX() + " " + getLocation().getY() + " is injured send request ");
 
 					// Define who's gone receive the message
 					for (int i = 0; i < listNearHuman.size(); i++) {
-						System.out.print(listNearHuman.get(i).getLocalName() + " at position:" + listNearHuman.get(i).myLocation().getX() + ","
-								+ listNearHuman.get(i).myLocation().getY() + " altruist: " + listNearHuman.get(i).getAltruist() + " ");
+						System.out.print(listNearHuman.get(i).getLocalName() + " at position:" + listNearHuman.get(i).getLocation().getX() + ","
+								+ listNearHuman.get(i).getLocation().getY() + " altruist: " + listNearHuman.get(i).getAltruist() + " ");
 						Human human = (Human) listNearHuman.get(i);
 						msgSend.addReceiver(human.getAID());
 					}
@@ -1540,7 +1549,7 @@ public class Human extends Agent {
 						System.out.println("------> " + getLocalName() + " receive a rescue message from " + msg.getSender().getLocalName());
 						// Store the human to save
 						humanToCarryMe = ((Human) findAgent(msg.getSender()));
-						GridPoint humanPoint = humanToCarryMe.myLocation();
+						GridPoint humanPoint = humanToCarryMe.getLocation();
 						System.out.println(getLocalName() + " accept rescue reply " + humanToCarryMe.getLocalName() + " at: " + humanPoint.getX() + ","
 								+ humanPoint.getY() + " will rescue");
 						knowExit = 1;
@@ -1560,15 +1569,15 @@ public class Human extends Agent {
 		@Override
 		public boolean done() {
 			// ##################################
-			if (checkFireAtLocation(myLocation().getX(), myLocation().getY())) {
+			if (checkFireAtLocation(getLocation().getX(), getLocation().getY())) {
 				alive = 0;
 				System.out.println(getLocalName() + " injured Die........");
 				takeDown();
 				return true;
 			}
 
-			if (checkDoorAtLocation(myLocation().getX(), myLocation().getY())) {
-				System.out.println(getLocalName() + " injured Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
+			if (checkDoorAtLocation(getLocation().getX(), getLocation().getY())) {
+				System.out.println(getLocalName() + " injured Found Door -> " + getLocation().getX() + " : " + getLocation().getY());
 				exitAlive = 1;
 				takeDown();
 				return true;
@@ -1596,7 +1605,7 @@ public class Human extends Agent {
 
 			if (wasHelped == 0) {
 				// TODO checkSecurityAtLocation
-				List<Object> securities = checkSecurityAtLocation(myLocation().getX(), myLocation().getY());
+				List<Object> securities = checkSecurityAtLocation(getLocation().getX(), getLocation().getY());
 				if (securities.size() > 0) {
 					// Try to get a security to carry me
 					for (int i = 0; i < securities.size(); i++) {
@@ -1628,15 +1637,15 @@ public class Human extends Agent {
 		@Override
 		public boolean done() {
 			// ##################################
-			if (checkFireAtLocation(myLocation().getX(), myLocation().getY())) {
+			if (checkFireAtLocation(getLocation().getX(), getLocation().getY())) {
 				alive = 0;
 				System.out.println(getLocalName() + " injured Die........");
 				takeDown();
 				return true;
 			}
 
-			if (checkDoorAtLocation(myLocation().getX(), myLocation().getY())) {
-				System.out.println(getLocalName() + " injured Found Door -> " + myLocation().getX() + " : " + myLocation().getY());
+			if (checkDoorAtLocation(getLocation().getX(), getLocation().getY())) {
+				System.out.println(getLocalName() + " injured Found Door -> " + getLocation().getX() + " : " + getLocation().getY());
 				exitAlive = 1;
 				takeDown();
 				return true;
